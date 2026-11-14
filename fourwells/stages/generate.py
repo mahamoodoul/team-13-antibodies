@@ -508,14 +508,29 @@ def run(
         def eligible(rec) -> bool:
             return bool((rec.axis_evidence.get("novelty") or {}).get("passes_challenge_filter"))
 
-        records.sort(key=lambda r: (not eligible(r), r.design_id))
-        n_eligible = sum(1 for r in records if eligible(r))
-        if n_eligible >= n:
-            # Leave one slot for a rejected design so the gate report is not empty.
-            keep = max(1, n - 1) if n > 1 else n
-            records = records[:keep] + records[n_eligible:n_eligible + (n - keep)]
-        else:
-            records = records[:n]
+        def batch_of(rec) -> str:
+            return rec.design_id.split("-", 1)[0]
+
+        # Spread the subset across batches, round-robin, instead of taking the
+        # lexicographic head. Each batch is a different hypothesis, and sorting by
+        # design_id alone handed every slot to whichever batch sorts first --
+        # "multicdr" before "optA" -- so a default run saw one hypothesis and the
+        # portfolio step had nothing to choose between.
+        groups: dict[str, list] = {}
+        for rec in sorted(records, key=lambda r: (not eligible(r), r.design_id)):
+            groups.setdefault(batch_of(rec), []).append(rec)
+
+        ordered: list[DesignRecord] = []
+        while any(groups.values()) and len(ordered) < len(records):
+            for key in sorted(groups):
+                if groups[key]:
+                    ordered.append(groups[key].pop(0))
+
+        keep = [r for r in ordered if eligible(r)][: max(1, n - 1) if n > 1 else n]
+        # Keep one ineligible design so the gate's rejection-reason report stays
+        # informative rather than silently empty.
+        rejected = [r for r in ordered if not eligible(r)][: n - len(keep)]
+        records = keep + rejected
 
     for rec in records:
         rec.note("generate", f"source: {how}")
