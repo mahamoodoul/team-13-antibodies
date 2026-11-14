@@ -1,10 +1,12 @@
 *.env
 *.pem
 *.private.json
+*.transcript.zip
 .DS_Store
 .claude/
 .env
 TEAM-13-SETUP.md
+chat-history/
 credentials.private.json
 japanfold.env
 nebius-runs/
