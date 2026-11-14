@@ -59,6 +59,110 @@ VALID_FORMATS = ("vhh", "scfv", "fab")
 # submission.
 PROVIDED_AB_FILE = REFERENCE_DIR / "provided_antibodies.json"
 
+# Every unique CDRH3 in the provided data, gzipped. This is the set the
+# challenge novelty rule is actually measured against, and it IS committed, so
+# the rule runs on a laptop with no VM and no network.
+UNIVERSE_FILE = REFERENCE_DIR / "provided_cdrh3_universe.txt.gz"
+AA_ALPHABET = "ACDEFGHIKLMNPQRSTVWY"
+
+_UNIVERSE: set[str] | None = None
+
+
+def load_universe(path: Path | None = None) -> set[str]:
+    """The 525k provided CDRH3s, loaded once and held."""
+    global _UNIVERSE
+    if _UNIVERSE is not None:
+        return _UNIVERSE
+    path = path or UNIVERSE_FILE
+    if not path.exists():
+        _UNIVERSE = set()
+        return _UNIVERSE
+    import gzip
+
+    with gzip.open(path, "rt") as fh:
+        _UNIVERSE = {line.strip().upper() for line in fh if line.strip()}
+    return _UNIVERSE
+
+
+def _carried_novelty(rec: DesignRecord, checks: dict) -> dict:
+    """Normalise a novelty verdict from wherever the generator put it.
+
+    Generation exports booleans under `axis_evidence["novelty"]`; this stage
+    speaks in `verdict`. Translating here rather than asking either side to
+    change means neither lane has to touch the other's file mid-afternoon.
+    """
+    raw = (
+        (checks.get("novelty") or {})
+        or ((rec.gates.checks or {}).get("novelty") or {})
+        or ((rec.axis_evidence or {}).get("novelty") or {})
+    )
+    if not raw:
+        return {}
+    out = dict(raw)
+    if "verdict" not in out:
+        passes = out.get("passes_challenge_filter")
+        if passes is None:
+            passes = out.get("passes_novelty")
+        if passes is True:
+            out["verdict"] = "pass"
+        elif passes is False:
+            out["verdict"] = "fail"
+            if out.get("in_provided_data"):
+                out.setdefault("reason", "CDRH3 appears verbatim in the provided data")
+            else:
+                n = out.get("min_substitutions_from_any_provided")
+                out.setdefault(
+                    "reason", f"only {n} substitution(s) from a provided sequence"
+                )
+        else:
+            out["verdict"] = "undecidable"
+            out.setdefault("reason", "generator reported no novelty verdict")
+    return out
+
+
+def novelty_from_universe(cdrh3: str, universe: set[str] | None = None) -> dict:
+    """Membership plus the 1-neighbourhood, computed locally.
+
+    The rule rejects a loop that is in the provided data or within a single
+    substitution of something in it. Enumerating the ~190 neighbours of one
+    10-mer and doing set lookups is exact and far cheaper than scanning 525k
+    rows per design.
+    """
+    universe = load_universe() if universe is None else universe
+    if not universe:
+        return {}
+
+    cdrh3 = cdrh3.upper()
+    if cdrh3 in universe:
+        return {
+            "verdict": "fail",
+            "in_provided_data": True,
+            "min_substitutions_from_any_provided": 0,
+            "reason": "CDRH3 appears verbatim in the provided data",
+            "source": "recomputed locally from the committed universe",
+        }
+
+    for i, orig in enumerate(cdrh3):
+        for aa in AA_ALPHABET:
+            if aa == orig:
+                continue
+            if cdrh3[:i] + aa + cdrh3[i + 1 :] in universe:
+                return {
+                    "verdict": "fail",
+                    "in_provided_data": False,
+                    "min_substitutions_from_any_provided": 1,
+                    "reason": "one substitution from a provided sequence",
+                    "source": "recomputed locally from the committed universe",
+                }
+
+    return {
+        "verdict": "pass",
+        "in_provided_data": False,
+        "min_substitutions_from_any_provided": 2,
+        "min_substitutions_is_capped_at_2": True,
+        "source": "recomputed locally from the committed universe",
+    }
+
 
 def load_provided_antibodies(path: Path | None = None) -> list[dict]:
     """[{name, sequence}, ...] or [] when the bundle has not landed."""
@@ -175,9 +279,11 @@ def track_checks(
 
     # Novelty distance against the provided set. A verdict carried in from the
     # generation export wins: it was computed against all 525,063 provided
-    # CDRH3s on the VM, which is the actual rule, and we have no local copy of
-    # that universe to check it against.
-    carried = (checks.get("novelty") or {}) or (rec.gates.checks or {}).get("novelty") or {}
+    # CDRH3s on the VM, which is the actual rule. Failing that we recompute it
+    # here from the committed universe, so a judge's own run is checked too.
+    carried = _carried_novelty(rec, checks)
+    if not carried and cdrh3:
+        carried = novelty_from_universe(cdrh3)
     if carried:
         checks["novelty"] = carried
         verdict = carried.get("verdict")
@@ -204,9 +310,14 @@ def track_checks(
         checks["min_mutations_from_provided"] = None
         checks["max_identity_to_provided"] = None
         checks["provided_note"] = (
-            f"provided-antibody set absent ({PROVIDED_AB_FILE.name}) — the "
-            "novelty distance rules are UNCHECKED, not passed"
+            f"provided-antibody set absent ({PROVIDED_AB_FILE.name}) and the "
+            f"CDRH3 universe ({UNIVERSE_FILE.name}) unreadable — novelty "
+            "UNCHECKED"
         )
+        # Fail closed, the same policy as an undecidable carried verdict. This
+        # branch used to write the note above and then say nothing, so every
+        # design passed a rule that had never run.
+        failed.append("novelty unchecked (no provided set and no universe)")
 
     track = (rec.track or "").lower()
 
@@ -355,7 +466,15 @@ def check(
     # BEFORE the abguard decision: otherwise the baseline looks like it failed
     # a free gate and the skip reason recorded against it is a lie.
     if rec.is_baseline:
-        dropped = [f for f in failed if "identity" in f or "mutation" in f]
+        # Novelty joins identity and mutation count here: trastuzumab's own
+        # CDRH3 is necessarily verbatim in the provided data, so it fails the
+        # novelty rule by construction. The baseline is a reference row rather
+        # than a submission, and gating it out would leave every axis without
+        # the reference it is scored against.
+        dropped = [
+            f for f in failed
+            if "identity" in f or "mutation" in f or f.startswith("novelty")
+        ]
         failed = [f for f in failed if f not in dropped]
         if dropped:
             checks["baseline_exempt_from"] = dropped

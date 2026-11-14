@@ -178,10 +178,36 @@ class TestGates(unittest.TestCase):
         gates.check(rec, REF, provided=[], use_abguard=True)
         self.assertEqual(rec.gates.checks["abguard"]["status"], "NOT RUN")
 
-    def test_provided_set_absence_is_unchecked_not_passed(self):
+    def test_novelty_is_decided_from_the_committed_universe(self):
+        """With no provided set, the rule still runs off the committed 525k."""
         rec = make("no-provided", "WEGDKFYMMH")
         gates.check(rec, REF, provided=[], use_abguard=False)
-        self.assertIn("provided_note", rec.gates.checks)
+        novelty = rec.gates.checks.get("novelty") or {}
+        self.assertIn(novelty.get("verdict"), ("pass", "fail"))
+
+    def test_novelty_fails_closed_when_nothing_can_decide_it(self):
+        """No provided set and no universe must reject, never silently pass.
+
+        This used to write a note and append nothing, so a rule that had never
+        run read as a pass on every design.
+        """
+        saved = gates._UNIVERSE
+        gates._UNIVERSE = set()
+        try:
+            rec = make("undecidable", "WEGDKFYMMH")
+            gates.check(rec, REF, provided=[], use_abguard=False)
+            self.assertFalse(rec.gates.passed)
+            self.assertTrue(
+                any("novelty" in f for f in rec.gates.failed_rules),
+                rec.gates.failed_rules,
+            )
+        finally:
+            gates._UNIVERSE = saved
+
+    def test_parent_loop_is_rejected_as_unnovel(self):
+        """Sanity anchor: trastuzumab's own loop is in the provided data."""
+        verdict = gates.novelty_from_universe(REF.cdrh3)
+        self.assertEqual(verdict.get("verdict"), "fail")
 
 
 class TestExpressionScreen(unittest.TestCase):
