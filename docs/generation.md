@@ -328,6 +328,27 @@ passing every gate **and** sitting at distance ≥3 from all 525,063 provided CD
 own point, now with the strict reading applied. So the measured cost of the strict reading is
 not only the ~2% joint score Rizve priced: **it moves the near-parent floor from 4 to 5.**
 
+**Enforced, the strict reading costs 35% of the shortlist, not 2%.** The decision was taken on
+a ~2% estimate — Rizve measured a single swap at 1.2% — and it was taken correctly, because
+the argument was asymmetry rather than magnitude. But the number it was taken on is wrong, and
+the team should hold the right one:
+
+| | pass gates | shortlist joint sum |
+| --- | --- | --- |
+| lenient, distance ≥ 2 | 262 / 401 | 0.2228 |
+| strict, distance ≥ 3 | 206 / 401 | **0.1452** (−34.8%) |
+
+Exactly 56 designs are lost, every one of them at distance 2, nothing else changed. The
+estimate was a single swap at the top of the old ranking; the real cost is that all four
+lenient picks are distance-2 designs and the best unambiguous alternatives score materially
+lower. Ansarul's asymmetry still holds — 35% of a joint score is a far better outcome than a
+disqualified submission — so the reading stays strict. It is simply a 35% decision, not a 2%
+one, and that is what we should say on stage if asked.
+
+One thing it buys back: the strict shortlist is **2 `optA` + 2 `optB`**, where the lenient one
+was four `optB`. The concentration warning Ansarul built fires less loudly under the reading we
+chose.
+
 **And the `multicdr` column must not be read as "closest to the parent".** That count is CDRH3
 substitutions only, and `multicdr` moves three loops. Decomposed against the parent VH:
 

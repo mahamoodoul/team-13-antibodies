@@ -45,20 +45,38 @@ LINKER = "GGGGSGGGGSGGGGS"
 
 # The minimum distance from any provided sequence that the filter accepts.
 #
-# SETTLED BY MEASUREMENT, not by reading the wording. The project text says
-# "more than 2 point mutations from any provided antibody", which reads as 3.
-# But Ruhit ran the real filter over 201 designs: it rejected 37, of which the
-# novelty component was 22 designs sitting within ONE substitution of a
-# provided sequence plus 3 appearing verbatim. Nothing at distance 2 was
-# rejected. So the filter in force requires 2 differences, not 3, and the
-# stricter reading was discarding submittable designs for nothing.
+# 3, BY TEAM DECISION, and this is the one number here that is a judgment call
+# rather than a measurement. The two do not agree:
 #
-# Designs at exactly 2 are still flagged `borderline` below: they pass, but the
-# portfolio step prefers a safer pick when it has the choice, because the
-# wording and the observed behaviour do not agree and a mentor has not yet
-# settled it. Yield where it is free, caution where it is cheap.
-MIN_DISTANCE_FROM_PROVIDED = 2
-BORDERLINE_DISTANCE = 2
+#   the wording   "more than 2 point mutations from any provided antibody",
+#                 whose plain reading is 3
+#   the behaviour Ruhit ran the real filter over 201 designs. It rejected 37:
+#                 22 within ONE substitution of a provided sequence, 3 verbatim.
+#                 Nothing at distance 2 was rejected, so the filter in force
+#                 appears to require 2.
+#
+# It sat at 2 on that measurement until 12:43, when Ansarul and Rizve both
+# called it the other way, and the asymmetry is why. Rizve priced the switch at
+# ~2% of joint score with 110 unambiguous designs available at distance >= 3
+# (section 8 of docs/generation.md measures what else it costs: the near-parent
+# floor moves from 4 substitutions to 5). Being wrong about the lenient reading
+# does not cost 2% -- it costs the entire submission, discovered after the pitch
+# when nothing can be done. No mentor had answered in three hours and the
+# shortlist cannot depend on one arriving.
+#
+# So: 3 satisfies both readings. "We took the strict reading of an ambiguous
+# rule and paid 2% for it" is a good answer to a judge, not a weak one.
+#
+# REVERSIBLE IN ONE EDIT. If a mentor confirms the lenient reading, set this
+# back to 2 and re-run; designs at distance 2 keep their exact measured
+# distance in the record, so nothing has to be regenerated to go back.
+MIN_DISTANCE_FROM_PROVIDED = 3
+
+# Designs exactly at the threshold are flagged `borderline` rather than
+# rejected: they pass, and the portfolio step prefers a safer pick when it has
+# the choice. Kept equal to the threshold so the flag keeps meaning "sitting on
+# the line we are least sure of", wherever that line is set.
+BORDERLINE_DISTANCE = MIN_DISTANCE_FROM_PROVIDED
 
 
 def novelty_verdict(nov: dict[str, Any]) -> tuple[bool | None, str]:
