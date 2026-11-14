@@ -323,7 +323,17 @@ it should — by what the generator redesigned:
 | --- | --- | --- | --- | --- |
 | `optA` CDRH3-only | 43 | 0.70 | 0.042 | 0 / 43 |
 | `optB` CDRH3-only | 31 | 0.70 | 0.022 | 0 / 31 |
-| `multicdr` three heavy CDRs | 16 | **0.45** | 0.150 | **3 / 16** |
+| `multicdr` three heavy CDRs | **98** | **0.40** | 0.197 | **34 / 98** |
+
+That `multicdr` row is now the whole batch, not a sample. We folded the remaining 82 designs on
+both models for exactly this reason, and the sample had understated the problem: 3 of 16 read as
+19% off-epitope, while **34 of 98 is 35%**. A third of our only uncorrelated hypothesis does not
+compete with trastuzumab for its epitope and therefore cannot be S-tier whatever its affinity.
+
+**That is what the fold budget bought.** There is no way to tell which 64 of the 98 are usable
+without folding them — the off-epitope designs are not identifiable from sequence, novelty or
+any design metric. Picking a `multicdr` design blind for the diversity slot was a 1-in-3 chance
+of spending a well on a design that cannot win.
 
 CDRH3-only designs sit at the parent's own value with almost no spread: epitope preservation
 really is close to free when one loop moves, which the plan argued from first principles and
