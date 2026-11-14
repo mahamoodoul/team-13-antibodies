@@ -160,12 +160,11 @@ def cmd_logs(args) -> int:
 
 
 def cmd_serve(args) -> int:
-    """One local site for the whole thing, and it opens the browser itself."""
-    from .logview import serve_all
+    """The web app: a server, routes, and a JSON API over runs and the call log."""
+    from .web.app import serve
 
     root = Path(args.root) if args.root else Path(__file__).resolve().parent.parent
-    serve_all(root, port=args.port, open_browser=not args.no_open)
-    return 0
+    return serve(root, port=args.port, open_browser=not args.no_open)
 
 
 def cmd_schema(args) -> int:

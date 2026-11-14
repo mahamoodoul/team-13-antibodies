@@ -48,20 +48,47 @@ Four rules hold the design together:
 4. **Offline by default.** `--online` is opt-in. The demo must run while the VM is dead
    and the conference wifi is gone, because tonight both will be true.
 
-## 3. The UI, and what was cut from it
+## 3. The UI
 
-There **is** a dashboard — [`report.html`](fourwells/report.py), generated per run. It
-sorts, filters, opens a dossier per design, and compares designs side by side. What was
-cut is the *toolchain*, not the interactivity, and an earlier draft of this section got
-that distinction wrong by cutting both.
+Two things, for two audiences.
 
-| Cut | Why |
+**The web app** — [`fourwells/web/`](fourwells/web/app.py), the one we work in:
+
+```
+make web       # http://127.0.0.1:4173, opens your browser
+make local     # demo, then the app
+```
+
+A server, real routes, a JSON API, and a front end in three files under
+[`static/`](fourwells/web/static). Overview, Runs, one run (shortlist, dossiers,
+rejections), and the live call log, polling while *live* is ticked so a finished run
+appears without a reload.
+
+**The report** — [`report.html`](fourwells/report.py), generated per run, for the judges.
+Self-contained and openable from a `file://` URL with no server at all, which the web app
+cannot be. Both exist on purpose: one is the working surface, one is the artefact we hand
+over.
+
+### What stayed cut, and what did not
+
+An earlier draft of this section cut the server and all interactivity, which was wrong
+twice over. The honest version:
+
+| Decision | Why |
 | --- | --- |
-| React + TypeScript | A build toolchain is a liability on a judge's laptop, not a demo. Vanilla JS against a JSON blob in the page gives the same interactions with no install and no `node_modules`. |
-| FastAPI backend | Nothing needs a server. The pipeline is a batch job that writes files, and the page reads data embedded in itself. |
-| SQLite / PostgreSQL | Peak scale is ~24 candidates against 768 measured designs. JSONL on disk is greppable, diffable in git, and has no migration step. |
+| **Server: built after all** | "Nothing needs a server" was wrong. `file://` cannot `fetch`, so a static page cannot show live data, and regenerating a file by hand is not a UI. It is `http.server` from the standard library, not a framework. |
+| React + TypeScript — still cut | A build toolchain is a liability on a judge's laptop. The front end is plain JS against the JSON API, so React can be put in front of that API later without touching the server. |
+| SQLite / PostgreSQL — still cut | Peak scale is ~24 candidates against 768 measured designs. JSONL on disk is greppable, diffable in git, and has no migration step. The API reads it directly. |
 | Three.js structure viewer | **Decided, not deferred.** A judge asks why we picked these four, not to rotate a cartoon. It would also need a structure file per design that the pipeline does not produce. Do not re-propose this. |
-| Live run-status UI | The run takes seconds and prints to stdout. |
+
+Two properties the server has to keep, both tested:
+
+- **Loopback only, and it cannot hand out files it does not mean to.** Run ids are matched
+  against a pattern and resolved inside `results/`; static paths are resolved inside
+  `static/`. Tested over a raw socket, because clients normalise `../` away before the
+  server ever sees it.
+- **Deep links work.** `/runs/<id>` typed straight into the address bar renders that run,
+  rather than 404-ing so the page only works if you click your way to it.
 
 What the page does, chosen because each answers a question a judge actually asks:
 
@@ -75,10 +102,11 @@ What the page does, chosen because each answers a question a judge actually asks
   argument made visible: *four distinct clusters, so their failure modes are
   uncorrelated.*
 
-The constraint that survives all of it: **no network at runtime**. No CDN, no web font,
-no `fetch`, no external reference of any kind — asserted in tests, and the behaviour is
-driven in headless Chrome by `tests/test_report.py` so that a sort which silently does
-nothing cannot pass for one that works.
+The constraint that survives all of it: **nothing is fetched from the internet**. No CDN,
+no web font, no package registry, no external reference of any kind. The app talks only
+to its own API on loopback; the report talks to nothing at all. Both are driven in
+headless Chrome by the tests, because a sort that silently does nothing looks exactly
+like one that works — a bug this project has now shipped twice, once in each UI.
 
 ### The second UI: the call log
 

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FourWells</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="brand" href="/">FourWells</a>
+    <nav>
+      <a href="/" data-nav="/">Overview</a>
+      <a href="/runs" data-nav="/runs">Runs</a>
+      <a href="/logs" data-nav="/logs">Call log</a>
+    </nav>
+    <span class="spacer"></span>
+    <label class="live">
+      <input type="checkbox" id="autorefresh" checked> live
+    </label>
+    <span id="pulse" class="pulse" title="last update"></span>
+  </div>
+</header>
+
+<main id="view" class="wrap">
+  <p class="muted">Loading…</p>
+</main>
+
+<footer class="wrap">
+  Local only — nothing here is sent anywhere. Every number on a design is a
+  <strong>prediction</strong>, not a measurement.
+</footer>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

@@ -24,6 +24,8 @@ test:   ## Blind run on a target the pipeline has not seen
 clean:
 	rm -rf results/ __pycache__ fourwells/__pycache__ fourwells/stages/__pycache__
 
-.PHONY: local
-local: demo ## Run the demo, then open everything in a browser: report + live call log
-	python3 -m fourwells.cli serve
+.PHONY: local web
+local: demo web ## Run the demo, then open the web app
+
+web:    ## The web app: overview, runs, designs and the live call log
+	python3 -m fourwells.web
