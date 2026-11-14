@@ -5,6 +5,7 @@ binding (SPR), epitope preservation, thermostability. Beat all three = S-tier.
 Two S-tier designs beat ten that each improve one thing.
 
 Full brief: **[docs/brief.md](docs/brief.md)** — submission rules, data, models, scoring.
+The plan: **[docs/plan.md](docs/plan.md)** — strategy, who owns what, the day, the pitch.
 
 ## Start here
 
