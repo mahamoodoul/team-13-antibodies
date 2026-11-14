@@ -1,0 +1,536 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Four Wells — shortlist visualiser</title>
+<style>
+  /* Layout: a scored pool on the left, the selected molecule on the right.
+     Palette is slate-neutral with a single teal accent; status colours are
+     separate from the accent so "picked" never reads as "good". */
+  :root {
+    --bg: #f7f8f9; --panel: #ffffff; --fg: #15191c; --fg-dim: #5c666e;
+    --line: #dfe3e6; --accent: #0d7d73; --accent-soft: #0d7d7320;
+    --ok: #16794f; --warn: #a1620a; --bad: #a32c2c; --muted: #9aa4ab;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1316; --panel: #171c20; --fg: #e8edf0; --fg-dim: #9aa6ae;
+      --line: #282f35; --accent: #2bb3a5; --accent-soft: #2bb3a528;
+      --ok: #3fae7c; --warn: #d79a3c; --bad: #e0645e; --muted: #5d686f;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1316; --panel: #171c20; --fg: #e8edf0; --fg-dim: #9aa6ae;
+    --line: #282f35; --accent: #2bb3a5; --accent-soft: #2bb3a528;
+    --ok: #3fae7c; --warn: #d79a3c; --bad: #e0645e; --muted: #5d686f;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.5 var(--sans); }
+  .wrap { max-width: 1400px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 21px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  h2 { font-size: 13px; margin: 0 0 12px; text-transform: uppercase; letter-spacing: .07em; color: var(--fg-dim); font-weight: 600; }
+  .sub { color: var(--fg-dim); margin: 0 0 20px; max-width: 70ch; }
+  .num { font-variant-numeric: tabular-nums; }
+  code, .mono { font-family: var(--mono); font-size: 12.5px; }
+
+  .stats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; }
+  .stat b { display: block; font-size: 20px; font-variant-numeric: tabular-nums; }
+  .stat span { font-size: 11.5px; color: var(--fg-dim); text-transform: uppercase; letter-spacing: .05em; }
+
+  .banner { border-left: 3px solid var(--warn); background: var(--panel); border-radius: 0 8px 8px 0;
+            padding: 12px 16px; margin-bottom: 20px; font-size: 13px; }
+  .banner b { color: var(--warn); }
+  .banner ul { margin: 8px 0 0; padding-left: 20px; color: var(--fg-dim); }
+
+  .cols { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(0,1fr); gap: 16px; align-items: start; }
+  @media (max-width: 900px) { .cols { grid-template-columns: minmax(0,1fr); } }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; min-width: 0; }
+  .card + .card { margin-top: 16px; }
+
+  svg { display: block; width: 100%; height: auto; }
+  .tick text { fill: var(--fg-dim); font-size: 10.5px; font-family: var(--mono); }
+  .gridline { stroke: var(--line); stroke-width: 1; }
+  .dot { cursor: pointer; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--fg-dim); margin-top: 10px; }
+  .key { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--fg-dim); font-weight: 600; }
+  td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--mono); }
+  tr.pick { cursor: pointer; }
+  tr.pick:hover td { background: var(--accent-soft); }
+  tr.active td { background: var(--accent-soft); }
+
+  .pill { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+  .pill.ok { background: color-mix(in srgb, var(--ok) 15%, transparent); color: var(--ok); }
+  .pill.warn { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
+  .pill.bad { background: color-mix(in srgb, var(--bad) 15%, transparent); color: var(--bad); }
+
+  .axisrow { display: grid; grid-template-columns: 74px 1fr 56px; gap: 10px; align-items: center; margin-bottom: 7px; }
+  .axisrow .lbl { font-size: 12px; color: var(--fg-dim); }
+  .bar { position: relative; height: 16px; background: var(--bg); border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
+  .bar i { position: absolute; top: 0; bottom: 0; left: 0; display: block; }
+  .bar .base { position: absolute; top: -2px; bottom: -2px; left: 50%; width: 1px; background: var(--fg-dim); }
+  .axisrow .val { text-align: right; font-family: var(--mono); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+
+  .reasons { margin: 14px 0 0; padding: 0; list-style: none; font-size: 12.5px; color: var(--fg-dim); }
+  .reasons li { padding: 6px 0 6px 12px; border-left: 2px solid var(--line); margin-bottom: 4px; }
+  .kill { margin-top: 12px; padding: 10px 12px; border-radius: 6px; background: var(--bg);
+          border: 1px solid var(--line); font-size: 12.5px; }
+  .kill b { color: var(--bad); display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
+
+  #viewer { position: relative; width: 100%; height: 420px; border: 1px solid var(--line);
+            border-radius: 8px; background: var(--bg); overflow: hidden; }
+  #viewer.drag { border-color: var(--accent); border-style: dashed; }
+  .empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center;
+           justify-content: center; gap: 10px; text-align: center; padding: 24px; color: var(--fg-dim); font-size: 13px; }
+  .empty strong { color: var(--fg); font-size: 14px; }
+  .empty code { display: block; background: var(--panel); border: 1px solid var(--line); border-radius: 5px;
+                padding: 7px 10px; margin-top: 4px; text-align: left; white-space: pre-wrap; word-break: break-all; }
+  .vctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; font-size: 12px; }
+  button, select { font: inherit; font-size: 12.5px; padding: 5px 10px; border-radius: 6px;
+                   border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button:focus-visible, select:focus-visible, tr:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .seq { font-family: var(--mono); font-size: 11.5px; word-break: break-all; color: var(--fg-dim);
+         background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 8px; margin-top: 10px; }
+  .seq mark { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+  footer { margin-top: 28px; font-size: 12px; color: var(--fg-dim); border-top: 1px solid var(--line); padding-top: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Four Wells — shortlist visualiser</h1>
+  <p class="sub">Every design the ranker saw, where the four picks sit, and the molecule itself.
+  All three axes are <em>P(beats trastuzumab)</em>, so <strong>0.50 is the baseline</strong> — the parent
+  scores exactly that by construction, not by coincidence.</p>
+
+  <div class="stats" id="stats"></div>
+  <div class="banner" id="blockers" hidden></div>
+
+  <div class="cols">
+    <div>
+      <div class="card">
+        <h2>The pool</h2>
+        <div id="chart"></div>
+        <div class="legend">
+          <span class="key"><span class="swatch" style="background:var(--accent)"></span> picked</span>
+          <span class="key"><span class="swatch" style="background:var(--muted)"></span> passed gates</span>
+          <span class="key"><span class="swatch" style="background:var(--bad);opacity:.45"></span> rejected</span>
+          <span class="key"><span class="swatch" style="background:var(--fg);border-radius:0"></span> trastuzumab</span>
+          <span class="key">click a point to inspect</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>The four</h2>
+        <div style="overflow-x:auto">
+          <table id="picks">
+            <thead><tr>
+              <th>#</th><th>Design</th><th>CDRH3</th>
+              <th class="n">Joint</th><th class="n">Bind</th><th class="n">Epi</th><th class="n">Stab</th>
+              <th>Novelty</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Why designs were rejected</h2>
+        <div id="fails"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <h2 id="selName">Selected design</h2>
+        <div id="axes"></div>
+        <ul class="reasons" id="reasons"></ul>
+        <div class="kill" id="kill" hidden></div>
+        <div class="seq" id="seq" hidden></div>
+      </div>
+
+      <div class="card">
+        <h2>Structure</h2>
+        <div id="viewer"><div class="empty" id="vempty"></div></div>
+        <div class="vctl">
+          <select id="style">
+            <option value="cartoon">Cartoon</option>
+            <option value="stick">Sticks</option>
+            <option value="sphere">Spheres</option>
+          </select>
+          <button id="spin">Spin</button>
+          <button id="reset">Reset view</button>
+          <label style="cursor:pointer">
+            <input type="file" id="file" accept=".cif,.pdb,.ent,.mmcif" hidden>
+            <span class="pill ok" style="padding:5px 10px;cursor:pointer">Open a .cif / .pdb</span>
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Scores are generated by <code>viz/build_data.py</code> from the same pipeline that picks the four, so this
+    page never recomputes a number. Structures are not committed — they are produced on the VM.
+    See <code>viz/README.md</code>.
+  </footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/3dmol@2.1.0/build/3Dmol-min.js"></script>
+<script>
+(function () {
+  "use strict";
+  var DATA = null, SEL = null, viewer = null, spinning = false;
+
+  function fmt(v, d) { return v === null || v === undefined ? "—" : Number(v).toFixed(d === undefined ? 2 : d); }
+  function el(tag, attrs, kids) {
+    var n = document.createElementNS(attrs && attrs.ns ? attrs.ns : "http://www.w3.org/1999/xhtml", tag);
+    for (var k in attrs || {}) { if (k !== "ns") n.setAttribute(k, attrs[k]); }
+    (kids || []).forEach(function (c) { n.appendChild(typeof c === "string" ? document.createTextNode(c) : c); });
+    return n;
+  }
+  function svgEl(tag, attrs, kids) {
+    var a = attrs || {}; a.ns = "http://www.w3.org/2000/svg"; return el(tag, a, kids);
+  }
+
+  // ---------- header ----------
+  function drawStats() {
+    var m = DATA.meta, host = document.getElementById("stats");
+    var kd = m.baseline_kd_nM === null || m.baseline_kd_nM === undefined ? "—" : m.baseline_kd_nM + " nM";
+    var kdLabel = m.baseline_kd_spread
+      ? "median baseline K_D · " + m.baseline_kd_n + " reps span " + m.baseline_kd_spread + "x"
+      : "baseline K_D";
+    [[m.n_pool, "designs scored"], [m.n_passed, "pass the gates"],
+     [m.n_selected, "wells to fill"], [kd, kdLabel],
+     [m.reference_cdrh3, "parent CDRH3"]].forEach(function (p) {
+      host.appendChild(el("div", {"class": "stat"}, [el("b", {}, [String(p[0])]), el("span", {}, [p[1]])]));
+    });
+
+    var a = DATA.audit;
+    if (a && a.blockers && a.blockers.length) {
+      var b = document.getElementById("blockers");
+      b.hidden = false;
+      b.appendChild(el("b", {}, ["Not submission-ready"]));
+      var ul = el("ul", {});
+      a.blockers.forEach(function (t) { ul.appendChild(el("li", {}, [t])); });
+      b.appendChild(ul);
+    }
+  }
+
+  // ---------- scatter: substitutions from the parent vs joint score ----------
+  function drawChart() {
+    var W = 640, H = 340, M = {t: 14, r: 14, b: 44, l: 52};
+    var iw = W - M.l - M.r, ih = H - M.t - M.b;
+    var rows = DATA.designs.filter(function (d) { return d.parent_subs !== null; });
+    var maxSub = Math.max.apply(null, rows.map(function (d) { return d.parent_subs; }));
+    var maxJ = Math.max.apply(null, rows.map(function (d) { return d.joint || 0; })) * 1.12 || 0.1;
+
+    var x = function (v) { return M.l + (v / maxSub) * iw; };
+    var y = function (v) { return M.t + ih - (v / maxJ) * ih; };
+
+    var svg = svgEl("svg", {viewBox: "0 0 " + W + " " + H, role: "img",
+      "aria-label": "Joint S-tier probability against CDRH3 substitutions from trastuzumab, for " + rows.length + " designs"});
+
+    // grid + y axis
+    for (var i = 0; i <= 4; i++) {
+      var yv = (maxJ / 4) * i;
+      svg.appendChild(svgEl("line", {"class": "gridline", x1: M.l, x2: W - M.r, y1: y(yv), y2: y(yv)}));
+      var g = svgEl("g", {"class": "tick"});
+      g.appendChild(svgEl("text", {x: M.l - 8, y: y(yv) + 3.5, "text-anchor": "end"}, [yv.toFixed(3)]));
+      svg.appendChild(g);
+    }
+    // x axis
+    for (var s = 0; s <= maxSub; s++) {
+      if (maxSub > 12 && s % 2) continue;
+      var gx = svgEl("g", {"class": "tick"});
+      gx.appendChild(svgEl("text", {x: x(s), y: H - M.b + 16, "text-anchor": "middle"}, [String(s)]));
+      svg.appendChild(gx);
+    }
+    svg.appendChild(svgEl("text", {x: M.l + iw / 2, y: H - 6, "text-anchor": "middle",
+      fill: "currentColor", "font-size": "11", opacity: ".65"}, ["CDRH3 substitutions from trastuzumab"]));
+    svg.appendChild(svgEl("text", {x: 12, y: M.t + ih / 2, "text-anchor": "middle", fill: "currentColor",
+      "font-size": "11", opacity: ".65", transform: "rotate(-90 12 " + (M.t + ih / 2) + ")"},
+      ["joint P(S-tier) = bind x epi x stab"]));
+
+    // the <70% identity floor: designs left of it cannot be submitted
+    var floorAt = 4;
+    svg.appendChild(svgEl("line", {x1: x(floorAt) - 0.5, x2: x(floorAt) - 0.5, y1: M.t, y2: M.t + ih,
+      stroke: "var(--bad)", "stroke-width": 1, "stroke-dasharray": "3 3", opacity: ".55"}));
+    svg.appendChild(svgEl("text", {x: x(floorAt) + 5, y: M.t + 11, fill: "var(--bad)", "font-size": "10",
+      opacity: ".85"}, ["<70% identity floor"]));
+
+    // jitter is deterministic per design so the picture is stable run to run
+    function jit(id) { var h = 0; for (var k = 0; k < id.length; k++) { h = (h * 31 + id.charCodeAt(k)) % 1000; } return (h / 1000 - 0.5) * 13; }
+
+    rows.sort(function (a, b) { return (a.selected ? 1 : 0) - (b.selected ? 1 : 0); });
+    rows.forEach(function (d) {
+      if (d.is_baseline) {
+        svg.appendChild(svgEl("rect", {"class": "dot", "data-id": d.id, x: x(0) - 5, y: y(d.joint || 0) - 5,
+          width: 10, height: 10, fill: "var(--fg)"}));
+        return;
+      }
+      var fill = d.selected ? "var(--accent)" : (d.passed ? "var(--muted)" : "var(--bad)");
+      var c = svgEl("circle", {"class": "dot", "data-id": d.id,
+        cx: x(d.parent_subs) + jit(d.id), cy: y(d.joint || 0), r: d.selected ? 6 : 3.2,
+        fill: fill, opacity: d.selected ? 1 : (d.passed ? 0.6 : 0.28)});
+      if (d.selected) { c.setAttribute("stroke", "var(--panel)"); c.setAttribute("stroke-width", "1.5"); }
+      c.appendChild(svgEl("title", {}, [d.id + "  " + (d.cdrh3 || "") + "\njoint " + fmt(d.joint, 4) +
+        (d.passed ? "" : "\nREJECTED: " + d.fails.join("; "))]));
+      svg.appendChild(c);
+    });
+
+    var host = document.getElementById("chart");
+    host.replaceChildren(svg);
+    svg.addEventListener("click", function (e) {
+      var id = e.target.getAttribute && e.target.getAttribute("data-id");
+      if (!id) { var p = e.target.parentNode; id = p && p.getAttribute && p.getAttribute("data-id"); }
+      if (id) select(id);
+    });
+  }
+
+  // ---------- the four ----------
+  function drawPicks() {
+    var tb = document.querySelector("#picks tbody");
+    var picks = DATA.designs.filter(function (d) { return d.selected; })
+      .sort(function (a, b) { return (a.rank || 99) - (b.rank || 99); });
+    tb.replaceChildren();
+    picks.forEach(function (d) {
+      var nov = d.novelty_borderline
+        ? el("span", {"class": "pill warn"}, ["dist " + d.novelty_dist + " · borderline"])
+        : el("span", {"class": "pill ok"}, ["dist " + (d.novelty_dist === null ? "?" : d.novelty_dist)]);
+      var tr = el("tr", {"class": "pick", "data-id": d.id, tabindex: "0"}, [
+        el("td", {"class": "n"}, [String(d.rank)]),
+        el("td", {}, [el("span", {"class": "mono"}, [d.id.replace("her2_cdrh3_", "")])]),
+        el("td", {}, [el("span", {"class": "mono"}, [d.cdrh3 || "—"])]),
+        el("td", {"class": "n"}, [fmt(d.joint, 4)]),
+        el("td", {"class": "n"}, [fmt(d.axes.binding)]),
+        el("td", {"class": "n"}, [fmt(d.axes.epitope)]),
+        el("td", {"class": "n"}, [fmt(d.axes.stability)]),
+        el("td", {}, [nov])
+      ]);
+      tr.addEventListener("click", function () { select(d.id); });
+      tr.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); select(d.id); } });
+      tb.appendChild(tr);
+    });
+  }
+
+  // ---------- rejection reasons ----------
+  function drawFails() {
+    var counts = {};
+    DATA.designs.forEach(function (d) {
+      (d.fails || []).forEach(function (f) {
+        // Mask the numbers so reasons aggregate, but only standalone ones —
+        // a bare /[0-9]/ turns "CDRH3 identity" into "CDRHN identity".
+        var key = f.replace(/(^|[\s(])\d+(\.\d+)?\b/g, "$1N").slice(0, 58);
+        counts[key] = (counts[key] || 0) + 1;
+      });
+    });
+    var rows = Object.keys(counts).map(function (k) { return [k, counts[k]]; })
+      .sort(function (a, b) { return b[1] - a[1]; });
+    var max = rows.length ? rows[0][1] : 1;
+    var host = document.getElementById("fails");
+    host.replaceChildren();
+    if (!rows.length) { host.appendChild(el("p", {}, ["Nothing was rejected."])); return; }
+    rows.forEach(function (r) {
+      var row = el("div", {"class": "axisrow"}, [
+        el("div", {"class": "val num"}, [String(r[1])]),
+        el("div", {"class": "bar"}, [el("i", {style: "width:" + (r[1] / max * 100) + "%;background:var(--bad);opacity:.5"})]),
+        el("div", {})
+      ]);
+      row.style.gridTemplateColumns = "44px 1fr 0";
+      host.appendChild(row);
+      host.appendChild(el("div", {style: "font-size:12px;color:var(--fg-dim);margin:-4px 0 10px 54px"}, [r[0]]));
+    });
+  }
+
+  // ---------- selected design ----------
+  function select(id) {
+    var d = DATA.designs.filter(function (x) { return x.id === id; })[0];
+    if (!d) return;
+    SEL = d;
+    document.getElementById("selName").textContent =
+      d.is_baseline ? "trastuzumab (baseline)" : d.id + (d.rank ? "  ·  rank " + d.rank : "");
+
+    var ax = document.getElementById("axes");
+    ax.replaceChildren();
+    ["binding", "epitope", "stability"].forEach(function (a) {
+      var v = d.axes[a];
+      var col = v === null ? "var(--muted)" : (v > 0.5 ? "var(--ok)" : (v < 0.42 ? "var(--bad)" : "var(--warn)"));
+      var bar = el("div", {"class": "bar"}, [
+        el("i", {style: "width:" + ((v || 0) * 100) + "%;background:" + col}),
+        el("span", {"class": "base"})
+      ]);
+      ax.appendChild(el("div", {"class": "axisrow"}, [
+        el("div", {"class": "lbl"}, [a]), bar, el("div", {"class": "val"}, [fmt(v)])
+      ]));
+    });
+    ax.appendChild(el("div", {style: "font-size:11.5px;color:var(--fg-dim);margin-top:4px"},
+      ["joint " + fmt(d.joint, 4) + " · cluster " + (d.cluster || "—") +
+       " · " + (d.parent_subs === null ? "?" : d.parent_subs) + " subs from parent" +
+       (d.min_ipae !== null ? " · min_ipae " + fmt(d.min_ipae, 3) + " (" + (d.refold_model || "?") + ")" : "") +
+       (d.iptm !== null ? " · ipTM " + fmt(d.iptm, 3) : "")]));
+
+    var rs = document.getElementById("reasons");
+    rs.replaceChildren();
+    var lines = (d.rationale && d.rationale.length) ? d.rationale
+      : ["binding", "epitope", "stability"].map(function (a) { return d.reasons[a]; }).filter(Boolean);
+    if (!d.passed) { lines = ["REJECTED: " + d.fails.join("; ")].concat(lines); }
+    lines.forEach(function (t) { rs.appendChild(el("li", {}, [t])); });
+
+    var kill = document.getElementById("kill");
+    if (d.kill_criterion) { kill.hidden = false; kill.replaceChildren(el("b", {}, ["Kill criterion"]), document.createTextNode(d.kill_criterion)); }
+    else { kill.hidden = true; }
+
+    var seq = document.getElementById("seq");
+    if (d.cdrh3) {
+      seq.hidden = false;
+      seq.replaceChildren(document.createTextNode("CDRH3  "), el("mark", {}, [d.cdrh3]),
+        document.createTextNode("   parent  " + DATA.meta.reference_cdrh3));
+    } else { seq.hidden = true; }
+
+    document.querySelectorAll("#picks tr").forEach(function (tr) {
+      tr.classList.toggle("active", tr.getAttribute("data-id") === id);
+    });
+    tryStructure(d);
+  }
+
+  // ---------- structure ----------
+  function viewerEmpty(msg, cmd) {
+    var host = document.getElementById("viewer");
+    if (viewer) { try { viewer.clear(); } catch (e) {} }
+    host.replaceChildren(el("div", {"class": "empty", id: "vempty"}, [
+      el("strong", {}, [msg]),
+      el("div", {}, ["Drop a .cif or .pdb here, or use the button below."]),
+      cmd ? el("code", {}, [cmd]) : el("span", {})
+    ]));
+  }
+
+  function renderStructure(text, format, label) {
+    var host = document.getElementById("viewer");
+    host.replaceChildren();
+    if (typeof window.$3Dmol === "undefined") {
+      viewerEmpty("3Dmol.js did not load", "The viewer needs the CDN once. The score panels work offline.");
+      return;
+    }
+    viewer = window.$3Dmol.createViewer(host, {backgroundColor: "white"});
+    try {
+      viewer.addModel(text, format);
+      applyStyle();
+      viewer.zoomTo();
+      viewer.render();
+      var tag = el("div", {style: "position:absolute;left:8px;top:8px;font:11px var(--mono);color:#333;background:#fff9;padding:2px 6px;border-radius:4px"}, [label || ""]);
+      host.appendChild(tag);
+    } catch (e) {
+      viewerEmpty("Could not parse that file", String(e).slice(0, 120));
+    }
+  }
+
+  function applyStyle() {
+    if (!viewer) return;
+    var s = document.getElementById("style").value;
+    viewer.setStyle({}, {});
+    if (s === "cartoon") {
+      viewer.setStyle({}, {cartoon: {colorscheme: "chain"}});
+      viewer.setStyle({hetflag: true}, {stick: {radius: 0.18}});
+    } else if (s === "stick") {
+      viewer.setStyle({}, {stick: {radius: 0.16, colorscheme: "chain"}});
+    } else {
+      viewer.setStyle({}, {sphere: {scale: 0.3, colorscheme: "chain"}});
+    }
+    viewer.render();
+  }
+
+  // Structures are not committed: they are produced on the VM, so the page
+  // looks for one next to itself and otherwise says how to get it.
+  function tryStructure(d) {
+    var base = "structures/" + d.id;
+    var cmd = "scp -i ~/.ssh/team-13 hackathon@<vm>:~/ruhit/gen/runs/*/scored-*/" + d.id + "*.cif viz/structures/";
+    if (location.protocol === "file:") {
+      viewerEmpty("No structure loaded for " + d.id, "Serve the folder so it can load automatically:\n  python3 -m http.server -d viz 8000\nOr drop the file in. To fetch it from the VM:\n  " + cmd);
+      return;
+    }
+    var tried = 0, exts = [".cif", ".pdb"];
+    (function next() {
+      if (tried >= exts.length) {
+        viewerEmpty("No structure file for " + d.id, "Expected viz/structures/" + d.id + ".cif\n\nFetch it from the VM:\n  " + cmd);
+        return;
+      }
+      var ext = exts[tried++];
+      fetch(base + ext).then(function (r) {
+        if (!r.ok) throw new Error("404");
+        return r.text();
+      }).then(function (t) {
+        renderStructure(t, ext === ".cif" ? "cif" : "pdb", d.id + ext);
+      }).catch(next);
+    })();
+  }
+
+  // ---------- controls ----------
+  function wire() {
+    document.getElementById("style").addEventListener("change", applyStyle);
+    document.getElementById("reset").addEventListener("click", function () {
+      if (viewer) { viewer.zoomTo(); viewer.render(); }
+    });
+    document.getElementById("spin").addEventListener("click", function () {
+      if (!viewer) return;
+      spinning = !spinning;
+      viewer.spin(spinning ? "y" : false);
+      this.textContent = spinning ? "Stop" : "Spin";
+    });
+    document.getElementById("file").addEventListener("change", function (e) {
+      var f = e.target.files && e.target.files[0];
+      if (!f) return;
+      var fr = new FileReader();
+      fr.onload = function () {
+        renderStructure(fr.result, /\.pdb|\.ent$/i.test(f.name) ? "pdb" : "cif", f.name);
+      };
+      fr.readAsText(f);
+    });
+    var host = document.getElementById("viewer");
+    ["dragenter", "dragover"].forEach(function (ev) {
+      host.addEventListener(ev, function (e) { e.preventDefault(); host.classList.add("drag"); });
+    });
+    ["dragleave", "drop"].forEach(function (ev) {
+      host.addEventListener(ev, function (e) { e.preventDefault(); host.classList.remove("drag"); });
+    });
+    host.addEventListener("drop", function (e) {
+      var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (!f) return;
+      var fr = new FileReader();
+      fr.onload = function () {
+        renderStructure(fr.result, /\.pdb|\.ent$/i.test(f.name) ? "pdb" : "cif", f.name);
+      };
+      fr.readAsText(f);
+    });
+  }
+
+  function boot(data) {
+    DATA = data;
+    drawStats(); drawChart(); drawPicks(); drawFails(); wire();
+    var first = DATA.designs.filter(function (d) { return d.rank === 1; })[0] ||
+                DATA.designs.filter(function (d) { return d.selected; })[0] || DATA.designs[0];
+    if (first) select(first.id);
+    window.addEventListener("resize", drawChart);
+  }
+
+  fetch("designs.json").then(function (r) { return r.json(); }).then(boot).catch(function () {
+    // file:// blocks fetch of a sibling file in most browsers.
+    document.getElementById("stats").appendChild(el("div", {"class": "banner"}, [
+      el("b", {}, ["Could not load designs.json. "]),
+      document.createTextNode("Serve the folder instead of opening the file directly:  python3 -m http.server -d viz 8000")
+    ]));
+  });
+})();
+</script>
+</body>
+</html>

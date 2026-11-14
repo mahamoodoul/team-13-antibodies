@@ -26,3 +26,4 @@ data/source/
 # results/ and nebius-runs/ are deliberately NOT ignored. The README says both
 # are safe to commit, provenance is 20% of the execution score, and the ranked
 # list we submit lives in results/. Large intermediates go in data/ instead.
+viz/structures/*
