@@ -1,0 +1,15 @@
+*.env
+*.pem
+*.private.json
+.DS_Store
+.claude/
+.env
+TEAM-13-SETUP.md
+credentials.private.json
+japanfold.env
+nebius-runs/
+results/
+setup/
+shortlist-design.html
+team-13
+team-13*
