@@ -93,6 +93,12 @@
 
   #viewer { position: relative; width: 100%; height: 420px; border: 1px solid var(--line);
             border-radius: 8px; background: var(--bg); overflow: hidden; }
+  .legend3d { position: absolute; left: 8px; top: 8px; display: flex; flex-direction: column; gap: 3px;
+              background: #ffffffe6; border-radius: 5px; padding: 6px 8px; font-size: 11px; color: #22282c; z-index: 2; }
+  .legend3d .swatch { width: 9px; height: 9px; border-radius: 2px; }
+  .scaffold-note { position: absolute; left: 8px; right: 8px; bottom: 8px; background: #ffffffe6;
+                   border-radius: 5px; padding: 6px 9px; font-size: 11px; color: #22282c; line-height: 1.45; z-index: 2; }
+  .scaffold-note b { color: #0d5c55; }
   #viewer.drag { border-color: var(--accent); border-style: dashed; }
   .empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center;
            justify-content: center; gap: 10px; text-align: center; padding: 24px; color: var(--fg-dim); font-size: 13px; }
@@ -454,29 +460,132 @@
     viewer.render();
   }
 
-  // Structures are not committed: they are produced on the VM, so the page
-  // looks for one next to itself and otherwise says how to get it.
-  function tryStructure(d) {
-    var base = "structures/" + d.id;
-    var cmd = "scp -i ~/.ssh/team-13 hackathon@<vm>:~/ruhit/gen/runs/*/scored-*/" + d.id + "*.cif viz/structures/";
-    if (location.protocol === "file:") {
-      viewerEmpty("No structure loaded for " + d.id, "Serve the folder so it can load automatically:\n  python3 -m http.server -d viz 8000\nOr drop the file in. To fetch it from the VM:\n  " + cmd);
+  // ---------- the parent complex, with this design's differences on it ----------
+  //
+  // We do not have folds for these designs: the generated complexes are on the
+  // VM. What we DO have is the experimental structure of the thing they are
+  // variants of — 1N8Z, trastuzumab Fab bound to HER2 at 2.52 A. Every
+  // optimisation design is that scaffold with a redesigned CDRH3, so the
+  // honest view is the real complex with the design's own substitutions marked
+  // on the loop being changed.
+  //
+  // This is NOT the design's structure and the page says so. No coordinate
+  // here is predicted or invented — every atom is from the deposited model.
+  // A real fold, dropped in or placed in viz/structures/, replaces it.
+  var SCAFFOLD = null;                       // 1N8Z text, fetched once
+  var CDRH3_RESI = [99, 108];                // chain B, verified against the file
+  var EPITOPE = "557-561,570-573,593-603";   // chain C, domain IV
+  var CH = {light: "A", heavy: "B", target: "C"};
+
+  function mutatedPositions(d) {
+    // Which CDRH3 positions differ from the parent loop, as residue numbers
+    // in chain B. Equal-length loops only; an indel shifts the register and
+    // a position-by-position comparison would be meaningless.
+    var parent = DATA.meta.reference_cdrh3 || "";
+    var loop = d.cdrh3 || "";
+    if (!loop || loop.length !== parent.length) return null;
+    var out = [];
+    for (var i = 0; i < loop.length; i++) {
+      if (loop[i] !== parent[i]) out.push(CDRH3_RESI[0] + i);
+    }
+    return out;
+  }
+
+  function drawScaffold(d) {
+    var host = document.getElementById("viewer");
+    host.replaceChildren();
+    if (typeof window.$3Dmol === "undefined") {
+      viewerEmpty("3Dmol.js did not load", "The score panels work offline; the 3D view needs the CDN once.");
       return;
     }
-    var tried = 0, exts = [".cif", ".pdb"];
-    (function next() {
-      if (tried >= exts.length) {
-        viewerEmpty("No structure file for " + d.id, "Expected viz/structures/" + d.id + ".cif\n\nFetch it from the VM:\n  " + cmd);
-        return;
+    // 3Dmol needs WebGL. Where there is none the failure is a null context
+    // deep inside the library, which would otherwise surface as the unhelpful
+    // "no structure available".
+    try {
+      viewer = window.$3Dmol.createViewer(host, {backgroundColor: "white"});
+      viewer.addModel(SCAFFOLD, "pdb");
+    } catch (e) {
+      viewer = null;
+      viewerEmpty("WebGL is unavailable in this browser",
+        "The 3D view needs it; everything else on this page works without it.\n" + String(e).slice(0, 140));
+      return;
+    }
+
+    var muts = d ? mutatedPositions(d) : null;
+
+    viewer.setStyle({}, {});
+    viewer.setStyle({chain: CH.target}, {cartoon: {color: "#b9c2c8", opacity: 0.9}});
+    viewer.setStyle({chain: CH.light}, {cartoon: {color: "#8fb6cf"}});
+    viewer.setStyle({chain: CH.heavy}, {cartoon: {color: "#6f8796"}});
+
+    // the epitope trastuzumab actually binds
+    viewer.setStyle({chain: CH.target, resi: EPITOPE},
+      {cartoon: {color: "#d98324"}, stick: {radius: 0.15, color: "#d98324"}});
+
+    // the loop we are redesigning
+    viewer.setStyle({chain: CH.heavy, resi: CDRH3_RESI[0] + "-" + CDRH3_RESI[1]},
+      {cartoon: {color: "#0d7d73"}, stick: {radius: 0.2, color: "#0d7d73"}});
+
+    // and, on it, the positions this design changes.
+    // `resi` must be an ARRAY here: 3Dmol parses "99-108" as a range but
+    // matches nothing for a bare comma list like "99,101,103" (measured: 0
+    // atoms vs 22 for the array), so joining these into a string silently
+    // drew no mutations at all.
+    if (muts && muts.length) {
+      viewer.setStyle({chain: CH.heavy, resi: muts},
+        {cartoon: {color: "#c2384a"}, stick: {radius: 0.3, color: "#c2384a"}});
+    }
+
+    viewer.zoomTo({chain: CH.heavy, resi: CDRH3_RESI[0] + "-" + CDRH3_RESI[1]});
+    viewer.zoom(0.45);
+    viewer.render();
+
+    var parent = DATA.meta.reference_cdrh3 || "";
+    var note = !d ? "" : (muts === null
+      ? "CDRH3 is " + (d.cdrh3 || "?").length + " aa vs the parent's " + parent.length +
+        " — an indel, so positions are not mapped"
+      : muts.length + " of " + parent.length + " CDRH3 positions differ");
+
+    host.appendChild(el("div", {"class": "legend3d"}, [
+      el("span", {"class": "key"}, [el("span", {"class": "swatch", style: "background:#c2384a"}), "changed by this design"]),
+      el("span", {"class": "key"}, [el("span", {"class": "swatch", style: "background:#0d7d73"}), "CDRH3 (parent)"]),
+      el("span", {"class": "key"}, [el("span", {"class": "swatch", style: "background:#d98324"}), "HER2 epitope"]),
+      el("span", {"class": "key"}, [el("span", {"class": "swatch", style: "background:#b9c2c8"}), "HER2 domain IV"])
+    ]));
+    host.appendChild(el("div", {"class": "scaffold-note"}, [
+      el("b", {}, ["1N8Z — trastuzumab Fab + HER2, 2.52 Å. "]),
+      document.createTextNode("Experimental parent, not this design's fold. " + note + ".")
+    ]));
+  }
+
+  function tryStructure(d) {
+    // A real fold for this design wins if one has been placed next to the page.
+    var cmd = "scp -i ~/.ssh/team-13 'hackathon@<vm>:~/ruhit/gen/runs/*/scored-*/" + d.id + "*.cif' viz/structures/";
+    if (location.protocol === "file:") {
+      if (SCAFFOLD) { drawScaffold(d); } else {
+        viewerEmpty("Serve the folder to load structures",
+          "python3 -m http.server -d viz 8000\n\nOr drop a .cif / .pdb in. To fetch this design's own fold:\n  " + cmd);
       }
-      var ext = exts[tried++];
-      fetch(base + ext).then(function (r) {
+      return;
+    }
+    fetch("structures/" + d.id + ".cif").then(function (r) {
+      if (!r.ok) throw new Error("404");
+      return r.text();
+    }).then(function (t) {
+      renderStructure(t, "cif", d.id + ".cif  (refolded design)");
+    }).catch(function () {
+      if (SCAFFOLD) { drawScaffold(d); return; }
+      fetch("scaffold/1N8Z.pdb").then(function (r) {
         if (!r.ok) throw new Error("404");
         return r.text();
       }).then(function (t) {
-        renderStructure(t, ext === ".cif" ? "cif" : "pdb", d.id + ext);
-      }).catch(next);
-    })();
+        SCAFFOLD = t;
+        drawScaffold(d);
+      }).catch(function () {
+        viewerEmpty("No structure available for " + d.id,
+          "Drop a .cif / .pdb in, or fetch this design's fold from the VM:\n  " + cmd);
+      });
+    });
   }
 
   // ---------- controls ----------

@@ -25,10 +25,38 @@ Each axis bar has a tick at 0.50. That is trastuzumab, and it is exact — every
 logistic over feature deltas against the reference, so the parent lands on 0.500 by
 construction. A bar past the tick is a design we predict beats it on that axis.
 
-## Structures are not committed
+## What the 3D panel shows
 
-The generated complexes live on the VM and are not in the repo. The page looks for
-`viz/structures/<design_id>.cif` and otherwise tells you how to fetch one. Either:
+We have no folds for these designs — the generated complexes are on the VM. What we do
+have is the experimental structure of the molecule they are all variants of: **1N8Z**,
+trastuzumab Fab bound to HER2 at 2.52 Å, committed as `viz/scaffold/1N8Z.pdb`.
+
+So the panel draws the real parent complex and marks this design's differences on it:
+
+| colour | what it is |
+| --- | --- |
+| red | CDRH3 positions **this design changes** |
+| teal | the rest of trastuzumab's CDRH3 (chain B, residues 99–108) |
+| orange | the HER2 epitope trastuzumab binds (chain C, 557-561 / 570-573 / 593-603) |
+| grey | HER2 domain IV |
+
+**This is not the design's structure, and the page says so under every view.** No coordinate
+is predicted or invented; every atom comes from the deposited model. For an optimisation-track
+design — this scaffold with a redesigned loop — it is the honest picture: it shows exactly
+which residues change and how close they sit to the epitope. A design whose CDRH3 differs in
+length is not mapped at all, because an indel shifts the register and a position-by-position
+comparison would be meaningless; the note says so instead.
+
+Mapping checks, all verified against the file rather than assumed: CDRH3 `WGGDGFYAMD` is
+chain B 99–108 with no insertion codes; epitope spans 557-561, 570-573 and 593-603 are all
+present in chain C; and 581-590 is **absent** from 1N8Z, exactly as
+`data/reference/trastuzumab.json` warns ("8PWH only — a loop not resolved in earlier
+structures").
+
+## A real fold replaces it
+
+The page prefers `viz/structures/<design_id>.cif` over the scaffold wherever one exists, so
+dropping real folds in upgrades every view with no code change. Either:
 
 ```bash
 # pull the refolded complexes for the shortlist
@@ -46,5 +74,6 @@ Fab + HER2 ECD) is a useful reference to drop in while the design folds are stil
 from the ranker. If the page and `fourwells` disagree, the JSON is stale — rerun `build_data.py`.
 The 3D viewer loads real files only; it will not draw a model we have not folded.
 
-The score panels work with no network. Only the 3D viewer needs its one library (3Dmol.js) from
-a CDN, and it degrades to a message if that is unavailable.
+The score panels work with no network. Only the 3D viewer needs its one library (3Dmol.js)
+from a CDN, and it degrades to a message if that is unavailable. It also needs WebGL, and
+says so plainly where there is none rather than reporting a missing structure.
