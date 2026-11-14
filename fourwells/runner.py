@@ -93,6 +93,14 @@ def run_pipeline(
             f"{n_stub}/{len(records)} records came from the STUB generator — "
             "these are not designs"
         )
+    if not ref.matches_target(target):
+        result.warnings.append(
+            f"reference mismatch: {ref.name} was raised against "
+            f"{ref.target_uniprot}, but this run targets {target.identifier} — "
+            "the epitope axis is unscorable and every score below is a "
+            "sequence-and-structure readout, not a comparison to a real rival"
+        )
+
     unscored = sum(1 for r in records if any(r.axes.get(a) is None for a in AXES))
     if unscored:
         result.warnings.append(

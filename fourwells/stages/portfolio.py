@@ -264,6 +264,16 @@ def allocate(clusters: list[Cluster], budget: int) -> tuple[list[DesignRecord], 
 # ---------------------------------------------------------------------------
 
 
+def _ref_name(rec: DesignRecord) -> str:
+    """What to call the reference molecule in prose about this design.
+
+    Scored records carry it; anything that reaches here unscored gets a name
+    that is true of every target rather than one that is true of HER2.
+    """
+    ev = (rec.axis_evidence or {}).get("binding") or {}
+    return ev.get("reference_name") or "the reference antibody"
+
+
 def _kill_criterion(rec: DesignRecord) -> str:
     """The measurement that would prove this design wrong.
 
@@ -275,25 +285,26 @@ def _kill_criterion(rec: DesignRecord) -> str:
     if weak is None:
         return "UNSET — no axis scored, so nothing about this design is falsifiable yet"
     axis, val = weak
+    ref = _ref_name(rec)
     if axis == "epitope":
         if (rec.track or "") == "de_novo":
             return (
-                "Fails if it loses the competitive-binding assay against trastuzumab: "
-                "a de novo binder off the domain IV epitope cannot be S-tier at any affinity. "
+                f"Fails if it loses the competitive-binding assay against {ref}: "
+                "a de novo binder off the reference epitope cannot be S-tier at any affinity. "
                 f"Predicted P(competes) {val:.2f} — this is the axis we expect to lose on."
             )
         return (
-            "Fails if competitive binding shows it no longer displaces trastuzumab, "
+            f"Fails if competitive binding shows it no longer displaces {ref}, "
             f"i.e. the CDR changes moved the paratope off the epitope (P {val:.2f})."
         )
     if axis == "binding":
         return (
-            f"Fails if SPR K_D comes back above trastuzumab's (predicted P {val:.2f}). "
+            f"Fails if SPR K_D comes back above {ref}'s (predicted P {val:.2f}). "
             "This is the expected failure: the <70% CDRH3 rule forced us to change an "
             "affinity-matured loop, and that is more likely to cost affinity than add it."
         )
     return (
-        f"Fails if the thermal melt is at or below trastuzumab's T_m (predicted P {val:.2f}) — "
+        f"Fails if the thermal melt is at or below {ref}'s T_m (predicted P {val:.2f}) — "
         "which would mean the framework and loop changes cost more stability than they bought."
     )
 
@@ -307,7 +318,7 @@ def _write_dossier(rec: DesignRecord, cluster_obj: Cluster | None, rank: int, bu
         lines.append(
             f"Joint P(S-tier) {js:.3f} = binding {rec.axes['binding']:.2f} x "
             f"epitope {rec.axes['epitope']:.2f} x stability {rec.axes['stability']:.2f}, "
-            "each against a trastuzumab baseline of 0.50 on every axis."
+            f"each against a {_ref_name(rec)} baseline of 0.50 on every axis."
         )
     for axis in AXES:
         reason = (ev.get(axis) or {}).get("reason")

@@ -1,6 +1,6 @@
 # FourWells — shortlist
 
-*2026-11-14 14:47 · 4 designs for 4 lab slots · chosen from 197 eligible of 401 generated*
+*2026-11-14 16:28 · 4 designs for 4 lab slots · chosen from 197 eligible of 401 generated*
 
 Every axis is scored against trastuzumab at 0.50. S-tier requires beating the
 baseline on all three at once, so the joint score is a product, not a mean: a

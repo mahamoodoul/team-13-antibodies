@@ -213,6 +213,14 @@ class ReferenceFeatures:
     dev: features.Developability
     dev_heavy: features.Developability | None = None
     fr4_offset: int = 0
+    # What to call the reference molecule in prose a human reads. Every axis
+    # writes a sentence naming it, and those sentences are the first thing a
+    # judge reads about a design. Hard-coding "trastuzumab" made the rationale
+    # for a PD-L1 binder claim it "binds where trastuzumab binds" — a false
+    # statement about a different protein, printed with full confidence.
+    name: str = "the reference antibody"
+    # The antigen the reference was raised against. None where it is unrecorded.
+    target_uniprot: str | None = None
 
     def dev_for(self, n_chains: int) -> tuple[features.Developability, str]:
         """The reference readout to compare a design of `n_chains` against.
@@ -246,6 +254,8 @@ class ReferenceFeatures:
             dev=features.developability(construct),
             dev_heavy=features.developability(vh),
             fr4_offset=offset,
+            name=ref.name or "the reference antibody",
+            target_uniprot=ref.target_uniprot,
         )
 
 
@@ -266,7 +276,14 @@ def score_binding(
         return None, {"status": "no CDRH3 to score"}, "CDRH3 unavailable — axis left null"
 
     aln = align(cdrh3, rf.cdrh3)
-    ev: dict = {"basis": "prior", "cdrh3": cdrh3, "reference_cdrh3": rf.cdrh3}
+    ev: dict = {
+        "basis": "prior",
+        "cdrh3": cdrh3,
+        "reference_cdrh3": rf.cdrh3,
+        # Carried on the record so the dossier and kill criterion can name the
+        # reference without the portfolio stage having to be handed one.
+        "reference_name": rf.name,
+    }
 
     if model and model.get("kind") == "cdrh3_table":
         # Fitted path, primary: the trained CDRH3 transformer's probability for
@@ -295,7 +312,7 @@ def score_binding(
             score = _logistic(z - z_ref)
             reason = (
                 f"CDRH3 scores {z - z_ref:+.2f} (log-odds) against "
-                f"trastuzumab's own loop under the CDRH3 transformer fitted on "
+                f"{rf.name}'s own loop under the CDRH3 transformer fitted on "
                 f"the 524k FACS-labelled variants"
             )
             return score, ev, reason
@@ -325,7 +342,7 @@ def score_binding(
         )
         score = _logistic(z - z_ref)
         reason = (
-            f"CDRH3 scores {z - z_ref:+.2f} against trastuzumab's own loop under the "
+            f"CDRH3 scores {z - z_ref:+.2f} against {rf.name}'s own loop under the "
             f"model fitted on 524k FACS-labelled variants of this exact parent"
         )
         return score, ev, reason
@@ -432,6 +449,31 @@ def score_epitope(
     track = (rec.track or "").lower()
     ev: dict = {"basis": "prior", "track": track}
 
+    # The whole axis is "does this still compete with the reference for ITS
+    # epitope". That question is only meaningful when the reference was raised
+    # against this target. Run the HER2 reference at PD-L1 and the optimisation
+    # branch below would report paratope conservation as epitope competition --
+    # a confident sentence about a protein nobody scored. Fail closed instead,
+    # the same way an unlocatable CDRH3 fails the identity gate: an unevaluated
+    # axis is an unscored axis, and selection says so.
+    tgt = (getattr(target, "identifier", "") or "").upper()
+    if (
+        rf.target_uniprot
+        and tgt
+        and getattr(target, "kind", "") == "uniprot"
+        and rf.target_uniprot != tgt
+    ):
+        ev.update(
+            basis="unscorable",
+            reference_target=rf.target_uniprot,
+            run_target=tgt,
+        )
+        return None, ev, (
+            f"NOT SCORED — {rf.name} was raised against {rf.target_uniprot}, not {tgt}. "
+            f"Epitope competition against a reference for a different antigen is not a "
+            f"measurement, so this axis is left unscored rather than guessed."
+        )
+
     contacts = rec.axis_evidence.get("epitope_contacts")
     if contacts:
         # Structural evidence present: measure overlap with the target's
@@ -512,8 +554,8 @@ def score_epitope(
     )
     score = _logistic(W_EPITOPE["paratope_retention"] * (retention - 1.0))
     return score, ev, (
-        f"optimisation-track variant retaining {retention:.0%} of trastuzumab's CDR paratope "
-        "— it binds where trastuzumab binds, so this axis is close to free"
+        f"optimisation-track variant retaining {retention:.0%} of {rf.name}'s CDR paratope "
+        f"— it binds where {rf.name} binds, so this axis is close to free"
     )
 
 

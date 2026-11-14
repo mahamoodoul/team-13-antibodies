@@ -47,6 +47,32 @@ class ReferenceAntibody:
     meta: dict[str, Any] = field(default_factory=dict)
 
     @property
+    def target_uniprot(self) -> str | None:
+        """The antigen this reference antibody was raised against, if recorded.
+
+        A reference is only a reference *for its own target*. Scoring a design
+        against trastuzumab tells you nothing if the target is PD-L1, so the
+        pipeline has to be able to notice that the two do not match.
+        """
+        for value in (self.meta or {}).values():
+            if isinstance(value, dict) and value.get("uniprot"):
+                return str(value["uniprot"]).upper()
+        return None
+
+    def matches_target(self, target: "Target") -> bool:
+        """Is this reference the right yardstick for `target`?
+
+        Unknown on either side counts as a match: an unrecorded reference is
+        the operator's business, and refusing to score on missing metadata
+        would fail every custom reference someone supplies.
+        """
+        mine = self.target_uniprot
+        theirs = (getattr(target, "identifier", "") or "").upper()
+        if not mine or not theirs or getattr(target, "kind", "") != "uniprot":
+            return True
+        return mine == theirs
+
+    @property
     def warnings(self) -> list[str]:
         w = []
         if not self.vl:
