@@ -43,9 +43,22 @@ from .schema import DesignRecord
 
 LINKER = "GGGGSGGGGSGGGGS"
 
-# The rule, as the project states it: strictly more than 2 point mutations from
-# any provided antibody. So 3 is the minimum passing distance.
-MIN_DISTANCE_FROM_PROVIDED = 3
+# The minimum distance from any provided sequence that the filter accepts.
+#
+# SETTLED BY MEASUREMENT, not by reading the wording. The project text says
+# "more than 2 point mutations from any provided antibody", which reads as 3.
+# But Ruhit ran the real filter over 201 designs: it rejected 37, of which the
+# novelty component was 22 designs sitting within ONE substitution of a
+# provided sequence plus 3 appearing verbatim. Nothing at distance 2 was
+# rejected. So the filter in force requires 2 differences, not 3, and the
+# stricter reading was discarding submittable designs for nothing.
+#
+# Designs at exactly 2 are still flagged `borderline` below: they pass, but the
+# portfolio step prefers a safer pick when it has the choice, because the
+# wording and the observed behaviour do not agree and a mentor has not yet
+# settled it. Yield where it is free, caution where it is cheap.
+MIN_DISTANCE_FROM_PROVIDED = 2
+BORDERLINE_DISTANCE = 2
 
 
 def novelty_verdict(nov: dict[str, Any]) -> tuple[bool | None, str]:
@@ -68,15 +81,16 @@ def novelty_verdict(nov: dict[str, Any]) -> tuple[bool | None, str]:
     if nov.get("in_provided_data") or dist == 0:
         return False, "CDRH3 is already in the provided data — a known binder fails novelty"
     if dist >= MIN_DISTANCE_FROM_PROVIDED:
+        if dist == BORDERLINE_DISTANCE:
+            # Passes the filter as measured, but the wording would read as a
+            # failure. Flagged rather than rejected; the portfolio step breaks
+            # ties against it.
+            return True, (
+                f"{'2 or more' if capped else dist} substitutions from the nearest "
+                "provided sequence — passes the filter as measured, but the project "
+                "wording reads as 'more than 2'. Borderline: still unsettled"
+            )
         return True, f"{dist} substitutions from the nearest provided sequence"
-    if capped and dist == 2:
-        # "2 or more" — could be 2 (fails) or 3+ (passes). Undecidable.
-        return None, (
-            "export reports '2 or more' substitutions from the nearest provided "
-            "sequence, capped at 2. The rule needs MORE than 2, so this cannot be "
-            "decided from the export. Re-run export_batch.py with the cap raised to "
-            f"{MIN_DISTANCE_FROM_PROVIDED} to resolve it"
-        )
     return False, (
         f"only {dist} substitution(s) from the nearest provided sequence, "
         f"needs >= {MIN_DISTANCE_FROM_PROVIDED}"
@@ -132,10 +146,12 @@ def to_record(row: dict[str, Any]) -> DesignRecord:
     nov = row.get("novelty") or {}
     if nov:
         passes, reason = novelty_verdict(nov)
+        dist = nov.get("min_substitutions_from_any_provided")
         rec.gates.checks["novelty"] = {
             **nov,
             "verdict": "pass" if passes else ("undecidable" if passes is None else "fail"),
             "reason": reason,
+            "borderline": bool(passes and dist == BORDERLINE_DISTANCE),
         }
         if nov.get("mutations_from_parent") is not None:
             rec.cdrh3_mutations_from_tras = nov["mutations_from_parent"]

@@ -227,7 +227,11 @@ class ReferenceFeatures:
 
 
 def score_binding(
-    rec: DesignRecord, rf: ReferenceFeatures, model: dict | None, policy
+    rec: DesignRecord,
+    rf: ReferenceFeatures,
+    model: dict | None,
+    policy,
+    pool_median_ipae: float | None = None,
 ) -> tuple[float | None, dict, str]:
     cdrh3 = features.clean(rec.cdrh3)
     if not cdrh3 or not rf.cdrh3:
@@ -282,15 +286,45 @@ def score_binding(
     }
 
     # Structure evidence, if Ruhit's refold metrics travelled with the record.
+    #
+    # The two metrics are NOT interchangeable and the baseline file is explicit
+    # about why: min_ipae is refold-score comparing a design to its own refold,
+    # so the parent has no design to compare against and structurally has no
+    # min_ipae. ipTM/pTM/pLDDT do have a parent value. So:
+    #
+    #   ipTM      -> baseline-relative confidence, under the policy clamp
+    #   min_ipae  -> design-to-design refold agreement, centred on the pool
+    #
+    # Centring min_ipae on the pool median rather than using it absolutely is
+    # what keeps the baseline honest: a design must not be penalised against
+    # the parent on a metric the parent cannot have. The baseline contributes 0
+    # here, which is exactly the median design.
     conf = rec.axis_evidence.get("confidence") or {}
-    raw_conf = conf.get("iptm", conf.get("ipae_inv"))
+    raw_conf = conf.get("iptm")
     if raw_conf is not None:
         adj, conf_note = policy.adjustment(float(raw_conf))
         f["confidence"] = adj
-        ev["confidence_input"] = raw_conf
+        ev["confidence_input"] = {"metric": "iptm", "value": raw_conf}
         ev["confidence_note"] = conf_note
+        if (conf.get("model") or "").startswith("boltz"):
+            ev["confidence_model_caveat"] = (
+                "Boltz-2: 94.3% of ~8,100 pairs measured NOT to bind score ipTM >= 0.7 "
+                "(median 0.88) against 99% of cognate pairs (median 0.91). A design "
+                "above the parent on ipTM has not been shown to bind better, which is "
+                "why this enters as a clamped feature and never as the score."
+            )
+
     disagree = conf.get("refold_disagreement")
-    if disagree is not None:
+    if conf.get("min_ipae") is not None and pool_median_ipae is not None:
+        # Lower min_ipae is better agreement, so worse-than-median is positive
+        # and gets penalised by W_BINDING["refold_disagreement"].
+        f["refold_disagreement"] = float(conf["min_ipae"]) - pool_median_ipae
+        ev["refold_agreement"] = {
+            "min_ipae": conf["min_ipae"],
+            "pool_median": round(pool_median_ipae, 4),
+            "basis": "design-to-design within one model; the parent has no min_ipae",
+        }
+    elif disagree is not None:
         f["refold_disagreement"] = float(disagree)
 
     z = sum(W_BINDING[k] * v for k, v in f.items() if k in W_BINDING)
@@ -508,6 +542,19 @@ def run(
     model = load_binding_model()
     policy = confidence_policy()
 
+    # min_ipae is only meaningful design-to-design, so centre it on this pool.
+    # Computed once per run, which keeps it deterministic for a fixed pool.
+    ipaes = sorted(
+        float((r.axis_evidence.get("confidence") or {})["min_ipae"])
+        for r in records
+        if (r.axis_evidence.get("confidence") or {}).get("min_ipae") is not None
+    )
+    pool_median_ipae = (
+        (ipaes[len(ipaes) // 2] if len(ipaes) % 2 else
+         (ipaes[len(ipaes) // 2 - 1] + ipaes[len(ipaes) // 2]) / 2)
+        if ipaes else None
+    )
+
     if not rf.cdrh3:
         for rec in records:
             rec.axis_evidence["status"] = "reference CDRH3 unset — no axis can be scored"
@@ -518,7 +565,7 @@ def run(
         # The reference travels the identical path. Its deltas are all zero, so
         # it lands on 0.500 on every axis without being special-cased — which
         # is exactly why 0.5 means "ties trastuzumab" everywhere else.
-        b, b_ev, b_why = score_binding(rec, rf, model, policy)
+        b, b_ev, b_why = score_binding(rec, rf, model, policy, pool_median_ipae)
         e, e_ev, e_why = score_epitope(rec, rf, target)
         s, s_ev, s_why = score_stability(rec, rf)
 

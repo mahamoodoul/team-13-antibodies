@@ -364,6 +364,30 @@ class TestPortfolio(unittest.TestCase):
         n_family = sum(1 for r in picked if r.design_id.startswith("family-"))
         self.assertLessEqual(n_family, 2, "the tight family swallowed the shortlist")
 
+    def test_borderline_designs_lose_ties_to_unambiguous_ones(self):
+        """At the same joint score, send the design that is unambiguously
+        submittable. Costs nothing when both are available; costs a well if the
+        organisers read the novelty rule the strict way."""
+        safe = make("safe", "WEGDKFYMMH")
+        bord = make("borderline", "WEGDKFYMMY")
+        for r in (safe, bord):
+            r.axes = {a: 0.5 for a in AXES}
+            r.gates.passed = True
+        safe.gates.checks = {"novelty": {"verdict": "pass", "borderline": False}}
+        bord.gates.checks = {"novelty": {"verdict": "pass", "borderline": True}}
+
+        portfolio.run([safe, bord], budget=1)
+        self.assertTrue(safe.selected, "the unambiguous design should take the slot")
+        self.assertFalse(bord.selected)
+
+    def test_a_borderline_pick_says_so_in_its_dossier(self):
+        bord = make("borderline", "WEGDKFYMMY")
+        bord.axes = {a: 0.5 for a in AXES}
+        bord.gates.passed = True
+        bord.gates.checks = {"novelty": {"verdict": "pass", "borderline": True}}
+        portfolio.run([bord], budget=4)
+        self.assertTrue(any("borderline" in line.lower() for line in bord.rationale))
+
     def test_every_selected_design_has_a_kill_criterion_and_reasons(self):
         recs = []
         for i, cdrh3 in enumerate(["WEGDKFYMMH", "QRTDWYFDVL", "HHPLNNSTWG", "ADGKIRTEPQ"]):
@@ -433,7 +457,7 @@ class TestIngest(unittest.TestCase):
     def _row(self, dist, capped=True, in_provided=False, muts=4):
         return {
             "design_id": "d", "vh": TRAS_VH.replace(TRAS_CDRH3, "WEGDKFYMMH"),
-            "vl": "DIQMTQSPSSLSASVGDRVTITC", "cdrh3": "WEGDKFYMMH",
+            "vl": REF.vl or "", "cdrh3": "WEGDKFYMMH",
             "track": "optimisation", "format": "scfv", "parent": "trastuzumab",
             "novelty": {
                 "mutations_from_parent": muts,
@@ -461,21 +485,33 @@ class TestIngest(unittest.TestCase):
         passes, _ = novelty_verdict(self._row(4)["novelty"])
         self.assertTrue(passes)
 
-    def test_a_capped_two_is_undecidable_and_fails_closed(self):
-        """The rule is MORE than 2 substitutions from any provided antibody,
-        and the export caps its distance at 2, so a reported 2 means '2 or
-        more' and cannot answer the question. Rejecting costs one slot of
-        twenty; accepting wrongly costs the submission."""
+    def test_distance_two_passes_but_is_flagged_borderline(self):
+        """Settled by measurement. The project wording reads as "more than 2",
+        but Ruhit ran the real filter over 201 designs and it rejected only
+        designs within ONE substitution (22) or verbatim (3) — nothing at
+        distance 2. So 2 passes, and rejecting it was discarding submittable
+        designs for nothing.
+
+        It is still flagged, because the wording and the observed behaviour do
+        not agree and no mentor has settled it. The portfolio step breaks ties
+        against a borderline design rather than refusing it.
+        """
         from fourwells.ingest import novelty_verdict, to_record
 
         passes, reason = novelty_verdict(self._row(2, capped=True)["novelty"])
-        self.assertIsNone(passes)
-        self.assertIn("cannot be decided", reason)
+        self.assertTrue(passes)
+        self.assertIn("Borderline", reason)
 
         rec = to_record(self._row(2, capped=True))
+        self.assertTrue(rec.gates.checks["novelty"]["borderline"])
         gates.check(rec, REF, provided=[], use_abguard=False)
-        self.assertFalse(rec.gates.passed)
-        self.assertTrue(any("undecidable" in f for f in rec.gates.failed_rules))
+        self.assertTrue(rec.gates.passed, rec.gates.failed_rules)
+
+    def test_distance_three_is_not_borderline(self):
+        from fourwells.ingest import to_record
+
+        rec = to_record(self._row(3, capped=False))
+        self.assertFalse(rec.gates.checks["novelty"]["borderline"])
 
     def test_a_known_binder_fails_novelty(self):
         from fourwells.ingest import to_record
@@ -490,7 +526,7 @@ class TestIngest(unittest.TestCase):
 
         passes, reason = novelty_verdict(self._row(1)["novelty"])
         self.assertFalse(passes)
-        self.assertIn(">= 3", reason)
+        self.assertIn(">= 2", reason)
 
     def test_missing_universe_is_undecidable_not_a_pass(self):
         from fourwells.ingest import novelty_verdict

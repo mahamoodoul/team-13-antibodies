@@ -61,6 +61,18 @@ def joint_score(rec: DesignRecord) -> float | None:
     return score
 
 
+def is_borderline(rec: DesignRecord) -> bool:
+    """Passes the novelty filter as measured, but sits where the wording and
+    the observed behaviour disagree — exactly 2 substitutions from a provided
+    sequence. Not a rejection; a tie-break against.
+
+    It costs us nothing to prefer a design that is unambiguously submittable
+    when one is available at a similar score, and it costs a whole well if the
+    organisers read the rule the strict way.
+    """
+    return bool(((rec.gates.checks or {}).get("novelty") or {}).get("borderline"))
+
+
 def weakest_axis(rec: DesignRecord) -> tuple[str, float] | None:
     vals = [(a, rec.axes.get(a)) for a in AXES if rec.axes.get(a) is not None]
     return min(vals, key=lambda kv: kv[1]) if vals else None
@@ -79,10 +91,18 @@ class Cluster:
 
     @property
     def best(self) -> DesignRecord | None:
+        """The representative of this hypothesis.
+
+        Borderline designs sort last at equal score, so a cluster that holds an
+        unambiguously submittable design sends that one to the lab.
+        """
         scored = [m for m in self.members if m.joint_score is not None]
         if scored:
-            return max(scored, key=lambda r: (r.joint_score, r.design_id))
-        return min(self.members, key=lambda r: r.design_id) if self.members else None
+            return max(
+                scored,
+                key=lambda r: (round(r.joint_score, 4), not is_borderline(r), r.design_id),
+            )
+        return min(self.members, key=lambda r: (is_borderline(r), r.design_id)) if self.members else None
 
     @property
     def best_score(self) -> float:
@@ -190,7 +210,13 @@ def allocate(clusters: list[Cluster], budget: int) -> tuple[list[DesignRecord], 
             ):
                 if m not in picks:
                     pool.append((c.cid, m))
-        pool.sort(key=lambda t: -(t[1].joint_score if t[1].joint_score is not None else -1))
+        pool.sort(
+            key=lambda t: (
+                -(round(t[1].joint_score, 4) if t[1].joint_score is not None else -1),
+                is_borderline(t[1]),
+                t[1].design_id,
+            )
+        )
         for cid, m in pool:
             if len(picks) >= budget:
                 break
@@ -280,6 +306,14 @@ def _write_dossier(rec: DesignRecord, cluster_obj: Cluster | None, rank: int, bu
         lines.append(
             f"On the list because its strongest axis is {strongest[0]} ({strongest[1]:.2f}) "
             f"and it clears every entry gate."
+        )
+
+    if is_borderline(rec):
+        lines.append(
+            "Novelty borderline: exactly 2 substitutions from the nearest provided "
+            "sequence. It passes the filter as Ruhit measured it, but the project "
+            "wording reads as 'more than 2', so this pick is contingent on that "
+            "reading. Confirm with an Apheris mentor before submitting."
         )
 
     conf = (ev.get("confidence_policy") or {})

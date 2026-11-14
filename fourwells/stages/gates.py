@@ -100,9 +100,16 @@ def _carried_novelty(rec: DesignRecord, checks: dict) -> dict:
         return {}
     out = dict(raw)
     if "verdict" not in out:
-        passes = out.get("passes_challenge_filter")
+        # Read passes_novelty, NOT passes_challenge_filter. The latter is a
+        # composite of novelty AND the identity ceiling, so a design rejected
+        # purely for sitting at 3 substitutions from the parent was being
+        # reported as a novelty failure with a novelty reason attached. The
+        # design was still correctly rejected — the identity rule catches it two
+        # branches down — but the rejection-reason distribution is what tells
+        # Ruhit whether generation is drifting, and it was blaming the wrong rule.
+        passes = out.get("passes_novelty")
         if passes is None:
-            passes = out.get("passes_novelty")
+            passes = out.get("passes_challenge_filter")
         if passes is True:
             out["verdict"] = "pass"
         elif passes is False:
@@ -120,47 +127,101 @@ def _carried_novelty(rec: DesignRecord, checks: dict) -> dict:
     return out
 
 
-def novelty_from_universe(cdrh3: str, universe: set[str] | None = None) -> dict:
-    """Membership plus the 1-neighbourhood, computed locally.
+def _is_capped(nov: dict) -> bool:
+    """Whether a novelty block's distance is a ceiling rather than a value."""
+    return bool(
+        nov.get("min_substitutions_is_capped_at_2")
+        or nov.get("min_substitutions_is_capped_at")
+    )
+
+
+def novelty_from_universe(
+    cdrh3: str, universe: set[str] | None = None, max_distance: int = 3
+) -> dict:
+    """Exact distance to the nearest provided sequence, capped at `max_distance`.
 
     The rule rejects a loop that is in the provided data or within a single
-    substitution of something in it. Enumerating the ~190 neighbours of one
-    10-mer and doing set lookups is exact and far cheaper than scanning 525k
-    rows per design.
+    substitution of something in it. Enumerating a 10-mer's own substitution
+    neighbourhood and doing set lookups is exact and far cheaper than scanning
+    525k rows per design.
+
+    WHY THE CAP IS 3 AND NOT 2, which decided our whole shortlist. The
+    generation export caps at 2, so every design that passes reports exactly
+    "2", and all four of our picks came back at 2. But 2 is the one value where
+    the rule's wording ("more than 2 point mutations from any provided
+    antibody") and its measured behaviour (rejects only at <= 1) disagree. With
+    a cap of 2 we could not tell a design that is genuinely at 2 from one at 5,
+    so we could not prefer the unambiguous ones — the whole shortlist sat on an
+    unsettled reading. Going one step further costs ~16k set lookups per design
+    (the 2-neighbourhood) and removes the ambiguity for most of the pool.
     """
     universe = load_universe() if universe is None else universe
     if not universe:
         return {}
 
     cdrh3 = cdrh3.upper()
+    base = {
+        "in_provided_data": False,
+        "source": "recomputed locally from the committed universe",
+    }
+
     if cdrh3 in universe:
         return {
+            **base,
             "verdict": "fail",
             "in_provided_data": True,
             "min_substitutions_from_any_provided": 0,
             "reason": "CDRH3 appears verbatim in the provided data",
-            "source": "recomputed locally from the committed universe",
         }
 
-    for i, orig in enumerate(cdrh3):
+    n = len(cdrh3)
+    # Distance 1.
+    for i in range(n):
+        orig = cdrh3[i]
         for aa in AA_ALPHABET:
             if aa == orig:
                 continue
             if cdrh3[:i] + aa + cdrh3[i + 1 :] in universe:
                 return {
+                    **base,
                     "verdict": "fail",
-                    "in_provided_data": False,
                     "min_substitutions_from_any_provided": 1,
                     "reason": "one substitution from a provided sequence",
-                    "source": "recomputed locally from the committed universe",
                 }
 
+    if max_distance >= 2:
+        # Distance 2. ~16k lookups for a 10-mer.
+        for i in range(n):
+            oi = cdrh3[i]
+            for ai in AA_ALPHABET:
+                if ai == oi:
+                    continue
+                first = cdrh3[:i] + ai + cdrh3[i + 1 :]
+                for j in range(i + 1, n):
+                    oj = first[j]
+                    for aj in AA_ALPHABET:
+                        if aj == oj:
+                            continue
+                        if first[:j] + aj + first[j + 1 :] in universe:
+                            return {
+                                **base,
+                                "verdict": "pass",
+                                "min_substitutions_from_any_provided": 2,
+                                "borderline": True,
+                                "reason": (
+                                    "exactly 2 substitutions from a provided sequence — "
+                                    "passes the filter as measured, but the project "
+                                    "wording reads as 'more than 2'. Unsettled"
+                                ),
+                            }
+
     return {
+        **base,
         "verdict": "pass",
-        "in_provided_data": False,
-        "min_substitutions_from_any_provided": 2,
-        "min_substitutions_is_capped_at_2": True,
-        "source": "recomputed locally from the committed universe",
+        "min_substitutions_from_any_provided": max_distance,
+        "min_substitutions_is_capped_at": max_distance,
+        "borderline": False,
+        "reason": f"at least {max_distance} substitutions from every provided sequence",
     }
 
 
@@ -307,6 +368,21 @@ def track_checks(
     carried = _carried_novelty(rec, checks)
     if not carried and cdrh3:
         carried = novelty_from_universe(cdrh3)
+    elif carried and cdrh3 and carried.get("verdict") == "pass" and _is_capped(carried):
+        # The carried verdict passes, but its distance is capped at 2 and 2 is
+        # exactly the value where the rule's wording and its measured behaviour
+        # disagree. Resolve it locally so the portfolio step can prefer designs
+        # that are unambiguously submittable. Without this every passing design
+        # reports "2" and the whole shortlist rests on an unsettled reading.
+        refined = novelty_from_universe(cdrh3)
+        if refined:
+            carried = {
+                **carried,
+                **refined,
+                "carried_distance_was_capped_at": carried.get(
+                    "min_substitutions_from_any_provided"
+                ),
+            }
     if carried:
         checks["novelty"] = carried
         verdict = carried.get("verdict")
