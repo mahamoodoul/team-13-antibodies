@@ -10,6 +10,11 @@ it scored **0 of 4, 0 of 10 and 0 of 25**, with the correlation pointing the
 wrong way. It is not in the pipeline. `fit_binding.py` refuses to write a model
 that fails this check, so the hand-set prior is still what ranks binding.
 
+> **UPDATE 14:50 — read the last section.** The finding below is about the
+> *additive* model and it stands. A different fitted model, the CDRH3
+> transformer, passes the same blind check (rho −0.393, AUC 0.663/0.729) and now
+> ranks the binding column. The prior is now the fallback for unseen loops.
+
 This is slide 5. It is a stronger result than a working model would have been,
 because it is a measured claim about judgment rather than another architecture
 diagram.
@@ -123,3 +128,43 @@ thin.
   are clean and the leakage check is built on them.
 - 190 rows, and the 0.76% submittable rate rests on a single positive. The
   direction is solid; the precise number is not.
+
+---
+
+## UPDATE 14:50 — a different fitted model passes the same check
+
+The finding above is about the **additive** model (a position-specific logistic,
+one weight per position/residue). It is correct and it stands. But it is not the
+only fitted model we have, and it should not have closed the question.
+
+The CDRH3 **transformer** in `~/ansarul` was also trained on the FACS labels,
+and it was ranked against the same blind SPR rows. Run it yourself:
+
+```bash
+cd ~/ansarul && ./.venv/bin/python -I validate_spr.py
+```
+
+| Model | rho vs log K_D (n=152 unseen) | AUC K_D<10 nM | AUC K_D<1 nM | Top-10 under 10 nM |
+| --- | --- | --- | --- | --- |
+| additive PSSM | −0.149 (p=0.07) | 0.579 | 0.496 | 1/10 |
+| **CDRH3 transformer** | **−0.393 (p=6e−7)** | **0.663** | **0.729** | **6/10** |
+
+Base rate among the 152: 29/152 under 10 nM. The transformer's sign is correct,
+the correlation is significant, and it finds 6 of the top 10 tight binders
+against a 1.9-in-10 base rate. It also survives the distance confound the doc
+above warns about: Spearman with substitutions-from-parent controlled is
+**−0.276**, so it is not just counting mutations.
+
+This does not overturn the caution above — binding is still weak evidence at our
+designs' distance, and the ~1% submittable base rate still governs what to
+expect from four wells. What changes is only this: the pipeline's binding column
+no longer has to be a prior that can only penalise change. It is now the
+transformer, serialised as `data/models/binding_cdrh3.json` (`kind:
+"cdrh3_table"`) by `~/ansarul/export_transformer_table.py`, with the checkpoint
+sha256 in the file. A loop the table has never seen — an unseen target, a
+non-10-mer de novo loop — falls back to the prior deliberately; the additive PSSM
+is **not** used as that fallback, because it is the model that failed the check.
+
+The distance-binned caveat travels in the file's `heldout` block: the scorer is
+0.875 at 3 substitutions from training, 0.666 at 4, 0.504 at 5. The column ranks;
+it is not a K_D.

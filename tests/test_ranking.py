@@ -315,6 +315,77 @@ class TestAxes(unittest.TestCase):
         self.assertLess(abs(hi.axes["binding"] - lo.axes["binding"]), 0.15)
 
 
+class TestBindingModelKinds(unittest.TestCase):
+    """The binding seam understands two fitted shapes and a fallback chain.
+
+    The live pipeline used to score binding with a hand-set prior that can only
+    penalise change, while the challenge filter requires change. These pin the
+    fitted path: a transformer table gives the model's own ranking, an unseen
+    loop falls back to the additive PSSM, and with neither it falls back to the
+    prior -- so the blind `make test` run on an unseen target still works.
+    """
+
+    def setUp(self):
+        self.rf = score.ReferenceFeatures.build(REF)
+        self.policy = ConfidencePolicy(cutoff=None, calibrated=False, meta={})
+
+    def _table(self, scores, fallback=None):
+        m = {"kind": "cdrh3_table", "reference_cdrh3": TRAS_CDRH3,
+             "scores": scores, "fit_note": "test"}
+        if fallback is not None:
+            m["pssm_fallback"] = fallback
+        return m
+
+    def test_table_hit_uses_the_model_probability(self):
+        rec = make("table-hit", "WEGDKFYMMH")
+        m = self._table({TRAS_CDRH3: 0.5, "WEGDKFYMMH": 0.8})
+        s, ev, _ = score.score_binding(rec, self.rf, m, self.policy)
+        # Reference at p=0.5 (odds 1), so the axis equals the model probability.
+        self.assertAlmostEqual(s, 0.8, places=6)
+        self.assertEqual(ev["basis"], "fitted:cdrh3-transformer")
+        self.assertAlmostEqual(ev["model_probability"], 0.8, places=6)
+
+    def test_a_design_equal_to_the_parent_scores_exactly_half(self):
+        rec = make("parent", TRAS_CDRH3)
+        m = self._table({TRAS_CDRH3: 0.9974})
+        s, ev, _ = score.score_binding(rec, self.rf, m, self.policy)
+        self.assertAlmostEqual(s, 0.5, places=6)
+        self.assertEqual(ev["basis"], "fitted:cdrh3-transformer")
+
+    def test_higher_probability_ranks_higher(self):
+        hi = make("hi", "WEGDKFYMMH")
+        lo = make("lo", "WEGDKFYMMH")
+        m = self._table({TRAS_CDRH3: 0.5, "WEGDKFYMMH": 0.6})
+        m_lo = self._table({TRAS_CDRH3: 0.5, "WEGDKFYMMH": 0.4})
+        self.assertGreater(score.score_binding(hi, self.rf, m, self.policy)[0],
+                           score.score_binding(lo, self.rf, m_lo, self.policy)[0])
+
+    def test_table_miss_falls_back_to_the_pssm(self):
+        rec = make("table-miss", "WEGDKFYMMH")
+        m = self._table({}, fallback={"intercept": 0.0, "weights": {}})
+        s, ev, _ = score.score_binding(rec, self.rf, m, self.policy)
+        self.assertEqual(ev["basis"], "fitted:524k-facs")
+        self.assertTrue(ev.get("table_miss"))
+        self.assertAlmostEqual(s, 0.5, places=6)
+
+    def test_table_miss_without_a_fallback_uses_the_prior(self):
+        rec = make("nothing", "WEGDKFYMMH")
+        s, ev, _ = score.score_binding(rec, self.rf, self._table({}),
+                                       self.policy)
+        self.assertEqual(ev["basis"], "prior")
+        self.assertTrue(ev.get("table_miss"))
+        self.assertTrue(0.0 <= s <= 1.0)
+
+    def test_a_missing_reference_loop_does_not_crash(self):
+        """The reference loop is always in a table we build, but a corrupt or
+        truncated table must degrade, not raise."""
+        rec = make("no-ref", "WEGDKFYMMH")
+        m = self._table({"WEGDKFYMMH": 0.8})
+        s, ev, _ = score.score_binding(rec, self.rf, m, self.policy)
+        self.assertEqual(ev["basis"], "prior")
+        self.assertTrue(0.0 <= s <= 1.0)
+
+
 class TestPortfolio(unittest.TestCase):
     def test_joint_score_is_a_product(self):
         rec = make("prod", "WEGDKFYMMH")
@@ -363,6 +434,36 @@ class TestPortfolio(unittest.TestCase):
         )
         n_family = sum(1 for r in picked if r.design_id.startswith("family-"))
         self.assertLessEqual(n_family, 2, "the tight family swallowed the shortlist")
+
+    def test_a_ninety_percent_identical_loop_cannot_take_two_wells(self):
+        """Cluster ids are assigned per parent and binding mode, so two loops
+        one substitution apart can land in different clusters when their
+        epitope basis differs. They are one bet all the same: the well check
+        must read the loop identity, not the cluster id."""
+        near_a = make("near-a", "STAAVGYAMD")
+        near_a.axis_evidence["epitope"] = {"basis": "structural"}
+        near_b = make("near-b", "STAAVGYAFD")   # one substitution from near-a
+        near_b.axis_evidence["epitope"] = {"basis": "prior"}
+        others = []
+        for i, loop in enumerate(["YEQPGVMAMT", "SAPPPAFAFD", "YGSRGLHEYD"]):
+            r = make(f"other-{i}", loop)
+            r.axis_evidence["epitope"] = {"basis": "structural"}
+            others.append(r)
+        for r in [near_a, near_b, *others]:
+            r.axes = {"binding": 0.60, "epitope": 0.60, "stability": 0.60}
+            r.gates.passed = True
+        near_a.axes = {"binding": 0.90, "epitope": 0.90, "stability": 0.90}
+        near_b.axes = {"binding": 0.85, "epitope": 0.85, "stability": 0.85}
+        for r in [near_a, near_b, *others]:
+            r.joint_score = portfolio.joint_score(r)
+
+        portfolio.run([near_a, near_b, *others], budget=4)
+        picked = {r.design_id for r in [near_a, near_b, *others] if r.selected}
+        self.assertFalse({"near-a", "near-b"} <= picked,
+                         "a 90%-identical pair occupied two wells")
+        self.assertEqual(len(picked), 4)
+        self.assertTrue(any("near-identical" in s for r in [near_a, near_b]
+                            for s in r.stage_log))
 
     def test_borderline_designs_lose_ties_to_unambiguous_ones(self):
         """At the same joint score, send the design that is unambiguously

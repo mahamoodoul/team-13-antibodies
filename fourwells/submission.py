@@ -56,6 +56,27 @@ SUBMISSION_CAP = 20
 # nomination, which is why rank and priority are different columns.
 GUARANTEED_WELLS = 4
 
+# A blocker that is not an oversight must be recorded, not deleted. This file
+# holds decisions the team made on purpose; `readiness()` suppresses the
+# matching blocker only when the decision says why, and the payload carries the
+# decision so a judge can see it was a choice.
+DECISION_FILE = (
+    Path(__file__).resolve().parent.parent
+    / "data" / "reference" / "submission_decisions.json"
+)
+
+
+def load_decisions(path: Path | None = None) -> list[dict]:
+    p = path or DECISION_FILE
+    if not p.exists():
+        return []
+    try:
+        blob = json.loads(p.read_text())
+    except (OSError, json.JSONDecodeError):
+        return []
+    decisions = blob.get("decisions", []) if isinstance(blob, dict) else []
+    return [d for d in decisions if isinstance(d, dict)]
+
 
 # --------------------------------------------------------------------------- #
 # building the list
@@ -102,6 +123,30 @@ def _round_robin_by_cluster(pool: list[DesignRecord]) -> list[DesignRecord]:
         depth += 1
 
 
+def _unique_constructs(ordered: list[DesignRecord],
+                       cap: int) -> list[DesignRecord]:
+    """The list may not spend two slots on the same molecule.
+
+    Two design ids can carry byte-identical constructs (the generator emitted
+    the same heavy/light pair twice under different seeds). The organisers rank
+    molecules, not ids, so a duplicate is a wasted slot and a claim of breadth
+    we do not have. The first occurrence wins; later ones are dropped and the
+    list is refilled from further down so the cap is still met when the pool
+    allows it.
+    """
+    out: list[DesignRecord] = []
+    seen: set[str] = set()
+    for r in ordered:
+        seq, _, _ = construct_of(r)
+        if seq in seen:
+            continue
+        seen.add(seq)
+        out.append(r)
+        if len(out) >= cap:
+            break
+    return out
+
+
 def build_ranked_list(
     records: list[DesignRecord],
     selected: list[DesignRecord] | None = None,
@@ -114,7 +159,8 @@ def build_ranked_list(
         )
     picked_ids = {r.design_id for r in selected}
     rest = [r for r in _eligible(records) if r.design_id not in picked_ids]
-    return (list(selected) + _round_robin_by_cluster(rest))[:cap]
+    ordered = (list(selected) + _round_robin_by_cluster(rest))
+    return _unique_constructs(ordered, cap)
 
 
 def priority_of(position: int) -> str:
@@ -126,13 +172,23 @@ def priority_of(position: int) -> str:
 # --------------------------------------------------------------------------- #
 
 
-def readiness(records: list[DesignRecord], ranked: list[DesignRecord]) -> list[str]:
+def readiness(records: list[DesignRecord], ranked: list[DesignRecord],
+              decisions: list[dict] | None = None) -> list[str]:
     """What stands between this list and being sendable.
 
     Recomputed from the records every time rather than read from a stored
     audit, because this runs long after the audit was written and a blocker
     that only lives in a stale file is a blocker that quietly disappears.
+
+    `decisions` are deliberate choices recorded in
+    data/reference/submission_decisions.json. A decision can clear exactly the
+    blocker it names, and only when it carries a reason; it can never clear an
+    evidence blocker such as a design with no abguard pass.
     """
+    decisions = decisions or []
+    decided_kinds = {
+        d.get("kind") for d in decisions if str(d.get("reason", "")).strip()
+    }
     out: list[str] = []
 
     if not ranked:
@@ -158,7 +214,7 @@ def readiness(records: list[DesignRecord], ranked: list[DesignRecord]) -> list[s
         )
 
     tracks = {r.track for r in ranked if r.track}
-    if len(tracks) == 1:
+    if len(tracks) == 1 and "single_track" not in decided_kinds:
         out.append(
             f"every design is {next(iter(tracks))} — the two tracks are judged "
             "independently, so the other track is an empty entry."
@@ -295,8 +351,10 @@ def write_json(
     ranked: list[DesignRecord],
     path: Path,
     meta: dict | None = None,
+    decisions: list[dict] | None = None,
 ) -> dict:
-    blockers = readiness(records, ranked)
+    decisions = load_decisions() if decisions is None else decisions
+    blockers = readiness(records, ranked, decisions)
     payload = {
         "generated": datetime.now().strftime("%Y-%m-%d %H:%M"),
         "submission_cap": SUBMISSION_CAP,
@@ -309,6 +367,7 @@ def write_json(
         },
         "submission_ready": not blockers,
         "blockers": blockers,
+        "decisions": decisions,
         "designs": [],
         **(meta or {}),
     }
@@ -344,6 +403,7 @@ def write_all(
     out_dir: Path,
     selected: list[DesignRecord] | None = None,
     meta: dict | None = None,
+    decisions: list[dict] | None = None,
 ) -> dict[str, Path]:
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -358,7 +418,7 @@ def write_all(
     write_ranked_csv(ranked, paths["ranked_csv"])
     write_candidate_scores(records, ranked, paths["candidate_scores"])
     write_fasta(ranked, paths["fasta"])
-    write_json(records, ranked, paths["json"], meta)
+    write_json(records, ranked, paths["json"], meta, decisions)
     return paths
 
 
@@ -386,9 +446,10 @@ def main(argv: list[str] | None = None) -> int:
     sel_path = a.rundir / "selected.jsonl"
     selected = read_jsonl(sel_path) if sel_path.exists() else None
 
-    paths = write_all(records, a.rundir, selected)
+    decisions = load_decisions()
+    paths = write_all(records, a.rundir, selected, decisions=decisions)
     ranked = build_ranked_list(records, selected)
-    blockers = readiness(records, ranked)
+    blockers = readiness(records, ranked, decisions)
 
     print(f"\n  submission  {len(ranked)} of {SUBMISSION_CAP} ranked "
           f"({GUARANTEED_WELLS} lab · {max(0, len(ranked) - GUARANTEED_WELLS)} reserve)")

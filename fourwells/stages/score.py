@@ -153,17 +153,39 @@ def _logistic(z: float) -> float:
     return 1.0 / (1.0 + math.exp(-z))
 
 
+def _logit(p: float) -> float:
+    p = min(max(float(p), 1e-6), 1 - 1e-6)
+    return math.log(p / (1 - p))
+
+
 def _frac(seq: str, alphabet) -> float:
     seq = features.clean(seq)
     return sum(1 for a in seq if a in alphabet) / len(seq) if seq else 0.0
 
 
 def load_binding_model(path: Path | None = None) -> dict | None:
-    """The 524k-fitted CDRH3 binding model, when Mahamoodoul has fitted it.
+    """The FACS-fitted CDRH3 binding model, if one has been built.
 
-    Expected shape — a position-specific scoring matrix over the reference loop
-    plus an intercept, which is what a gradient-boosted or logistic fit on
-    FACS affinity classes reduces to for ranking purposes:
+    Two shapes are understood, both scored as a log-odds difference from the
+    reference loop so that 0.5 still means "ties trastuzumab":
+
+    * `cdrh3_table` — the trained CDRH3 transformer's probability for each loop,
+      precomputed, plus an optional `pssm_fallback` for loops the table has not
+      seen:
+
+        {"kind": "cdrh3_table",
+         "reference_cdrh3": "<parent loop>",
+         "scores": {"<loop>": P(high), ...},
+         "ensemble_sd": {"<loop>": float, ...},
+         "pssm_fallback": {"intercept": float, "weights": {...}},
+         "fit_note": "...", "heldout": {...}}
+
+      Produced by ~/ansarul/export_transformer_table.py. Preferred when present
+      because it carries the epistasis the additive fit cannot express.
+
+    * `pssm` — a position-specific scoring matrix over the reference loop plus an
+      intercept, which is what a logistic fit on FACS affinity classes reduces
+      to for ranking purposes:
 
         {"kind": "pssm", "intercept": float,
          "weights": {"<0-based loop position>": {"<aa>": float}},
@@ -245,6 +267,43 @@ def score_binding(
 
     aln = align(cdrh3, rf.cdrh3)
     ev: dict = {"basis": "prior", "cdrh3": cdrh3, "reference_cdrh3": rf.cdrh3}
+
+    if model and model.get("kind") == "cdrh3_table":
+        # Fitted path, primary: the trained CDRH3 transformer's probability for
+        # this exact loop, precomputed. Scored as a log-odds difference from the
+        # reference loop, so 0.5 still means "ties trastuzumab" and the axis
+        # keeps its meaning. A loop the table has not seen (an unseen target,
+        # or a non-10-mer de novo loop) falls back to the additive PSSM baked
+        # into the same file, then to the prior -- which is what keeps the
+        # blind `make test` run working on a target nobody has scored.
+        table = model.get("scores") or {}
+        p_here = table.get(cdrh3)
+        p_ref = table.get(rf.cdrh3)
+        if p_here is not None and p_ref is not None:
+            z = _logit(p_here)
+            z_ref = _logit(p_ref)
+            ev.update(
+                basis="fitted:cdrh3-transformer",
+                model_score=round(z, 4),
+                reference_score=round(z_ref, 4),
+                model_probability=round(float(p_here), 4),
+                reference_probability=round(float(p_ref), 4),
+                ensemble_sd=(model.get("ensemble_sd") or {}).get(cdrh3),
+                fit_note=model.get("fit_note"),
+                heldout=model.get("heldout"),
+            )
+            score = _logistic(z - z_ref)
+            reason = (
+                f"CDRH3 scores {z - z_ref:+.2f} (log-odds) against "
+                f"trastuzumab's own loop under the CDRH3 transformer fitted on "
+                f"the 524k FACS-labelled variants"
+            )
+            return score, ev, reason
+
+        ev["table_miss"] = True
+        fallback = model.get("pssm_fallback")
+        model = ({"kind": "pssm", **fallback}
+                 if isinstance(fallback, dict) else None)
 
     if model and model.get("kind") == "pssm":
         # Fitted path: score the loop under the 524k model, and express it

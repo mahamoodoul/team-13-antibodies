@@ -1,0 +1,13 @@
+{
+  "note": "Deliberate choices that a readiness blocker would otherwise flag. Each decision clears only the blocker whose `kind` it names, and only because it carries a reason. Evidence blockers -- a design with no abguard pass, an unscored axis, a pick closer than the strict novelty reading -- can never be cleared here.",
+  "decisions": [
+    {
+      "kind": "single_track",
+      "track": "optimisation",
+      "made": "2026-11-14",
+      "reason": "No de novo entry can be submitted. The 100 de novo Fv designs are 257-259 residues against the organisers' 250-residue construct cap. Converting them to VHH would submit a molecule that was never folded, never abguard-checked, and whose paratope was designed against a partner light chain. Submitting a molecule we have no evidence for scores worse on the challenge's own rubric than entering one track honestly, so the optimisation track is the entry by decision, not by omission.",
+      "cost": "The de novo track is unentered; it carries half of the track prize (EUR 3000 split evenly).",
+      "would_change_if": "A de novo construct under 250 aa with an abguard pass and a fold showing domain IV contacts is produced before the freeze."
+    }
+  ]
+}

@@ -156,6 +156,38 @@ class TestReadiness(unittest.TestCase):
         self.assertFalse(any("judged" in b
                              for b in submission.readiness(recs, ranked)))
 
+    def test_duplicate_constructs_never_take_two_slots(self):
+        """The generator emitted the same heavy/light pair twice under different
+        seeds. The organisers rank molecules, so the second copy is a wasted
+        slot and a false claim of breadth -- and the list must still refill."""
+        recs, sel = pool(25)
+        # d05 becomes a byte-identical copy of d01 (same loop, same construct).
+        recs[5].cdrh3 = recs[1].cdrh3
+        recs[5].sequence = recs[1].sequence
+        ranked = submission.build_ranked_list(recs, sel)
+        seqs = [submission.construct_of(r)[0] for r in ranked]
+        self.assertEqual(len(seqs), len(set(seqs)), "no repeated molecule")
+        self.assertEqual(len(ranked), 20, "and the cap is still filled")
+
+    def test_a_recorded_decision_clears_only_the_track_blocker(self):
+        """A deliberate single-track entry must be recordable, with its reason,
+        rather than silently deleted -- and it must never clear an evidence
+        blocker."""
+        recs, sel = pool(25)
+        ranked = submission.build_ranked_list(recs, sel)
+        decision = [{"kind": "single_track", "track": "optimisation",
+                     "reason": "no de novo construct fits the cap"}]
+        self.assertFalse(any("judged" in b for b in
+                             submission.readiness(recs, ranked, decision)))
+        # No reason, no clearance.
+        self.assertTrue(any("judged" in b for b in submission.readiness(
+            recs, ranked, [{"kind": "single_track"}])))
+        # And a real evidence blocker survives the decision.
+        recs[0].gates.checks = {"abguard": {"status": "NOT RUN"}}
+        ranked = submission.build_ranked_list(recs, sel)
+        self.assertTrue(any("abguard" in b for b in
+                            submission.readiness(recs, ranked, decision)))
+
 
 class TestExports(unittest.TestCase):
     def _write(self, recs, sel):

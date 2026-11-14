@@ -173,6 +173,19 @@ def cluster(records: list[DesignRecord]) -> list[Cluster]:
 # ---------------------------------------------------------------------------
 
 
+def _near_duplicate(a: DesignRecord, b: DesignRecord) -> bool:
+    """True when two picks are the same loop hypothesis.
+
+    Cluster ids are assigned per parent and binding mode, so two 90%-identical
+    loops whose epitope basis differs (one folded, one inferred) land in
+    different clusters. They are still one bet: if the change that separates
+    them does not matter, both fail together. Wells are checked against this
+    identity directly rather than trusting the cluster id.
+    """
+    la, lb = features.clean(a.cdrh3), features.clean(b.cdrh3)
+    return bool(la and lb) and identity(la, lb) >= CLUSTER_IDENTITY
+
+
 def allocate(clusters: list[Cluster], budget: int) -> tuple[list[DesignRecord], list[str]]:
     """One slot per cluster, best cluster first, then round-robin for leftovers.
 
@@ -184,15 +197,29 @@ def allocate(clusters: list[Cluster], budget: int) -> tuple[list[DesignRecord], 
     ordered = sorted(clusters, key=lambda c: (-c.best_score, c.cid))
     picks: list[DesignRecord] = []
     taken: dict[str, int] = {}
+    skipped: list[str] = []
 
-    # Pass 1: the best design from each distinct cluster.
+    # Pass 1: the best design from each distinct cluster. A pick that is a near
+    # copy of one already in the basket is skipped even if its cluster id
+    # differs -- the cluster id is a prediction, the loop identity is a fact.
     for c in ordered:
         if len(picks) >= budget:
             break
         b = c.best
-        if b is not None:
-            picks.append(b)
-            taken[c.cid] = 1
+        if b is None:
+            continue
+        if any(_near_duplicate(b, p) for p in picks):
+            skipped.append(b.design_id)
+            continue
+        picks.append(b)
+        taken[c.cid] = 1
+
+    if skipped:
+        notes.append(
+            f"{len(skipped)} near-identical loop(s) skipped as separate "
+            f"hypotheses despite a separate cluster id: {', '.join(skipped)}. "
+            f"At >={CLUSTER_IDENTITY:.0%} CDRH3 identity they are one bet."
+        )
 
     if len(picks) < budget:
         if len(ordered) < budget:
@@ -202,7 +229,8 @@ def allocate(clusters: list[Cluster], budget: int) -> tuple[list[DesignRecord], 
                 "wells, so some picks share a failure mode. Ask Ruhit for more diverse "
                 "candidates before accepting this."
             )
-        # Pass 2: deepen the strongest clusters, in score order.
+        # Pass 2: deepen the strongest clusters, in score order. Similarity is
+        # allowed here only because the alternative is an empty well.
         pool = []
         for c in ordered:
             for m in sorted(
