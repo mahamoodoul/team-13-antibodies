@@ -14,6 +14,7 @@ import sys
 from pathlib import Path
 
 from .cache import Cache
+from .report import render
 from .runner import run_pipeline, write_outputs
 from .schema import AXES, SCHEMA_VERSION
 from .targets import resolve_reference_ab, resolve_target
@@ -90,6 +91,10 @@ def cmd_run(args) -> int:
         timebox=args.timebox,
     )
     paths = write_outputs(result, args.out)
+    if not args.no_report:
+        # Rendered on every run, so the committed example output is never stale
+        # and nothing has to be generated live during the pitch.
+        paths.update(render(result.records, args.out, budget=args.budget))
     _print_report(result, target, ref, paths, cache)
 
     if args.strict and result.warnings:
@@ -125,6 +130,7 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--timebox", type=float, default=300.0, help="per-stage warn threshold, seconds")
     r.add_argument("--online", action="store_true", help="allow network/GPU calls (default: offline)")
     r.add_argument("--strict", action="store_true", help="exit non-zero if any warning")
+    r.add_argument("--no-report", action="store_true", help="skip the rendered report and order sheet")
     r.set_defaults(func=cmd_run)
 
     s = sub.add_parser("schema", help="print the frozen design-record contract")
