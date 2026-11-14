@@ -55,11 +55,25 @@ CONF_COLUMNS = ("iptm", "ipTM", "af3_iptm", "iptm_af3", "confidence", "min_ipae_
 LABEL_COLUMNS = ("binds", "label", "is_binder", "binder", "measured_binding")
 
 
+# Not all non-binders are equal evidence. A molecule MEASURED not to bind is a
+# fact about the world; a shuffled antigen-antibody pair is a computational
+# decoy that was never expected to bind, and separating those is an easier
+# problem than the one we face. Only a measured basis unlocks letting
+# confidence raise a binding score.
+MEASURED, COMPUTATIONAL = "measured", "computational"
+
+
 @dataclass
 class ConfidencePolicy:
     cutoff: float | None
     calibrated: bool
     meta: dict
+    basis: str = MEASURED
+
+    @property
+    def trusted(self) -> bool:
+        """Whether confidence is allowed to help, not just to hurt."""
+        return self.calibrated and self.basis == MEASURED
 
     def adjustment(self, conf: float) -> tuple[float, str]:
         """Feature value contributed by a structure-confidence number.
@@ -67,18 +81,24 @@ class ConfidencePolicy:
         Returns (value, note). The value is added to the binding axis with a
         deliberately small weight; see W_BINDING in stages/score.py.
         """
-        if not self.calibrated:
+        if not self.trusted:
             # Clamped at zero from above: high confidence contributes nothing.
-            adj = min(0.0, conf - FOLKLORE_CUTOFF)
+            ref = float(self.cutoff) if self.cutoff is not None else FOLKLORE_CUTOFF
+            adj = min(0.0, conf - ref)
             if adj == 0.0:
+                why = (
+                    "uncalibrated"
+                    if not self.calibrated
+                    else f"calibrated only against {self.basis} non-binders"
+                )
                 note = (
-                    f"confidence {conf:.2f} ignored — uncalibrated, and high confidence "
+                    f"confidence {conf:.2f} ignored — {why}, and high confidence "
                     "is not allowed to raise a binding score (21 of 454 measured "
                     "non-binders clear ipTM 0.7)"
                 )
             else:
                 note = (
-                    f"confidence {conf:.2f} below the {FOLKLORE_CUTOFF} folklore line, "
+                    f"confidence {conf:.2f} below the {ref} line, "
                     "counted as weak evidence against binding only"
                 )
             return adj, note
@@ -92,9 +112,10 @@ class ConfidencePolicy:
         return {
             "calibrated": self.calibrated,
             "cutoff": self.cutoff,
+            "basis": self.basis,
             "policy": (
                 "confidence may lower a binding score but never raise it"
-                if not self.calibrated
+                if not self.trusted
                 else "confidence enters as (conf - cutoff)"
             ),
             **({"meta": self.meta} if self.meta else {}),
@@ -111,7 +132,10 @@ def confidence_policy(path: Path | None = None) -> ConfidencePolicy:
         )
     blob = json.loads(path.read_text())
     return ConfidencePolicy(
-        cutoff=float(blob["cutoff"]), calibrated=True, meta=blob.get("meta", {})
+        cutoff=float(blob["cutoff"]),
+        calibrated=True,
+        meta=blob.get("meta", {}),
+        basis=blob.get("basis", MEASURED),
     )
 
 
@@ -250,6 +274,13 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--positives", type=Path, help="CSV of measured binders, for the sensitivity cost")
     ap.add_argument("--conf-column", help="override the confidence column name")
     ap.add_argument("--target-specificity", type=float, default=0.95)
+    ap.add_argument(
+        "--basis",
+        choices=[MEASURED, COMPUTATIONAL],
+        default=MEASURED,
+        help="measured: molecules assayed and found not to bind. computational: "
+        "shuffled/decoy pairs. Only a measured basis lets confidence raise a score.",
+    )
     ap.add_argument("--out", type=Path, default=CUTOFF_FILE)
     ap.add_argument("--dry-run", action="store_true", help="print, do not write")
     args = ap.parse_args(argv)
@@ -270,6 +301,14 @@ def main(argv: list[str] | None = None) -> int:
         pos.extend(extra)
 
     result = calibrate(neg, pos or None, args.target_specificity)
+    result["basis"] = args.basis
+    if args.basis == COMPUTATIONAL:
+        result["meta"]["basis_caveat"] = (
+            "Calibrated against computational decoys, not measured non-binders. "
+            "Separating shuffled pairs is an easier problem than the one we face, so "
+            "this cutoff may still LOWER a binding score and may not raise one. "
+            "Point this at the 454 measured negatives to unlock that."
+        )
     print(json.dumps(result, indent=2))
     print("\n" + result["headline"])
     if result.get("conclusion"):

@@ -257,9 +257,26 @@ class TestAxes(unittest.TestCase):
         self.assertLess(adj_low, 0.0)
 
     def test_calibrated_policy_lets_confidence_help(self):
-        calibrated = ConfidencePolicy(cutoff=0.82, calibrated=True, meta={"basis": "454 negatives"})
+        calibrated = ConfidencePolicy(
+            cutoff=0.82, calibrated=True, meta={}, basis="measured"
+        )
         adj, _ = calibrated.adjustment(0.95)
         self.assertGreater(adj, 0.0)
+
+    def test_a_decoy_calibration_does_not_unlock_confidence(self):
+        """A cutoff fitted against shuffled pairs is weaker evidence than one
+        fitted against molecules measured not to bind. Separating decoys is an
+        easier problem than ours, so it may still lower a score and may not
+        raise one."""
+        decoys = ConfidencePolicy(
+            cutoff=0.69, calibrated=True, meta={}, basis="computational"
+        )
+        self.assertFalse(decoys.trusted)
+        adj, note = decoys.adjustment(0.95)
+        self.assertEqual(adj, 0.0)
+        self.assertIn("computational", note)
+        # ...but a low value still counts against the design.
+        self.assertLess(decoys.adjustment(0.30)[0], 0.0)
 
     def test_confidence_is_a_feature_not_the_score(self):
         """Two designs identical but for structure confidence must not differ
