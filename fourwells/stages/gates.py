@@ -173,8 +173,21 @@ def track_checks(
     checks["cdrh3_alignment"] = f"{aln.a_aligned} / {aln.b_aligned}"
     checks["cdrh3_length_delta"] = len(cdrh3) - len(ref.cdrh3)
 
-    # Novelty distance against the provided set.
-    if provided:
+    # Novelty distance against the provided set. A verdict carried in from the
+    # generation export wins: it was computed against all 525,063 provided
+    # CDRH3s on the VM, which is the actual rule, and we have no local copy of
+    # that universe to check it against.
+    carried = (checks.get("novelty") or {}) or (rec.gates.checks or {}).get("novelty") or {}
+    if carried:
+        checks["novelty"] = carried
+        verdict = carried.get("verdict")
+        if verdict == "fail":
+            failed.append(f"novelty: {carried.get('reason', 'failed the provided-sequence rule')}")
+        elif verdict == "undecidable":
+            # Fail closed. One lost slot in a shortlist of twenty costs less
+            # than one submission the organisers throw out.
+            failed.append(f"novelty undecidable: {carried.get('reason', 'see checks.novelty')}")
+    elif provided:
         dists = [(align(heavy, features.clean(p["sequence"])), p["name"]) for p in provided]
         nearest_muts, nearest_name = min(
             ((a.substitutions(), n) for a, n in dists), key=lambda t: t[0]
@@ -208,7 +221,8 @@ def track_checks(
                 f"CDRH3 identity {ident:.2f} >= {MAX_CDRH3_IDENTITY} "
                 f"({muts} muts; needs >= {need} of {len(ref.cdrh3)})"
             )
-        if provided and checks["min_mutations_from_provided"] <= MIN_POINT_MUTATIONS:
+        local_dist = checks.get("min_mutations_from_provided")
+        if local_dist is not None and local_dist <= MIN_POINT_MUTATIONS:
             failed.append(
                 f"only {checks['min_mutations_from_provided']} point mutations from "
                 f"{checks['nearest_provided']}, needs > {MIN_POINT_MUTATIONS}"
@@ -216,7 +230,8 @@ def track_checks(
     elif track == "de_novo":
         if muts < MIN_CDRH3_MUTATIONS:
             failed.append(f"{muts} CDRH3 mutations from reference, needs >= {MIN_CDRH3_MUTATIONS}")
-        if provided and checks["max_identity_to_provided"] >= MAX_KNOWN_IDENTITY:
+        local_ident = checks.get("max_identity_to_provided")
+        if local_ident is not None and local_ident >= MAX_KNOWN_IDENTITY:
             failed.append(
                 f"identity {checks['max_identity_to_provided']:.2f} to "
                 f"{checks['most_similar_provided']} >= {MAX_KNOWN_IDENTITY} "
