@@ -321,9 +321,13 @@ it should — by what the generator redesigned:
 
 | batch | n | median recall | sd | off-epitope |
 | --- | --- | --- | --- | --- |
-| `optA` CDRH3-only | 43 | 0.70 | 0.042 | 0 / 43 |
-| `optB` CDRH3-only | 31 | 0.70 | 0.022 | 0 / 31 |
-| `multicdr` three heavy CDRs | **98** | **0.40** | 0.197 | **34 / 98** |
+| `optA` CDRH3-only | 85 | 0.70 | 0.046 | **0 / 85** |
+| `optB` CDRH3-only | 53 | 0.70 | 0.025 | **0 / 53** |
+| `multicdr` three heavy CDRs | 98 | **0.40** | 0.197 | **34 / 98** |
+
+236 refolded designs, and the split is as clean as it gets: **138 CDRH3-only designs, not one
+of them off the epitope**, against 34 of 98 when three loops move. Nothing in the first group
+even dips below 0.50 recall.
 
 That `multicdr` row is now the whole batch, not a sample. We folded the remaining 82 designs on
 both models for exactly this reason, and the sample had understated the problem: 3 of 16 read as
