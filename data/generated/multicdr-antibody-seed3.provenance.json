@@ -13,6 +13,18 @@
   "track": "optimisation",
   "image": "quay.io/apheris/oslo-hackathon:apheris-rfd4-proteina-v0.3.0-antibody-2026-10-30",
   "designed_regions": "heavy chain CDRH1 (B26-35), CDRH2 (B50-66) and CDRH3 (B99-108); framework and the whole light chain retained",
-  "epitope_hotspots": ["C/572/CD", "C/573/CD1", "D/591/CG2", "D/593/NZ"],
-  "_reconstructed": "This batch was launched with an inline docker run rather than scripts/design_batch.sh, so no provenance.json was written at run time. Every field above was read back from the run's own outputs -- design/config.json for the parameters and inference_metrics/per_example_metrics.csv for the checkpoint name -- not from memory. Use scripts/design_batch.sh so this does not happen again."
+  "epitope_hotspots": [
+    "C/572/CD",
+    "C/573/CD1",
+    "D/591/CG2",
+    "D/593/NZ"
+  ],
+  "_reconstructed": "This batch was launched with an inline docker run rather than scripts/design_batch.sh, so no provenance.json was written at run time. Every field above was read back from the run's own outputs -- design/config.json for the parameters and inference_metrics/per_example_metrics.csv for the checkpoint name -- not from memory. Use scripts/design_batch.sh so this does not happen again.",
+  "target": "P04626",
+  "target_aliases": [
+    "P04626",
+    "HER2",
+    "ERBB2"
+  ],
+  "_target_note": "Replay is restricted to this target. These are anti-HER2 designs; replaying them for another target would return confidently wrong candidates."
 }

@@ -205,6 +205,47 @@ def _batch_files(batch_dir: Path) -> list[Path]:
     return sorted(p for p in batch_dir.glob("*.jsonl") if p.is_file())
 
 
+# Every committed batch was generated against HER2. Replaying them for a different
+# target would hand back anti-HER2 antibodies with a dossier asserting they bind
+# where trastuzumab binds -- confidently wrong, and the blind run on an unseen
+# target is exactly what the execution score checks.
+DEFAULT_BATCH_TARGET_ALIASES = ("p04626", "her2", "erbb2")
+
+
+def _batch_targets(path: Path) -> set[str]:
+    """Which targets a batch file may be replayed for, from its provenance."""
+    prov = path.with_suffix("").with_suffix(".provenance.json")
+    if not prov.exists():
+        prov = path.parent / (path.stem + ".provenance.json")
+    aliases: set[str] = set()
+    if prov.exists():
+        try:
+            blob = json.loads(prov.read_text())
+        except (OSError, ValueError):
+            blob = {}
+        for key in ("target", "target_aliases"):
+            val = blob.get(key)
+            if isinstance(val, str):
+                aliases.add(val.strip().lower())
+            elif isinstance(val, (list, tuple)):
+                aliases.update(str(v).strip().lower() for v in val)
+    if not aliases:
+        aliases.update(DEFAULT_BATCH_TARGET_ALIASES)
+    return {a for a in aliases if a}
+
+
+def _target_matches(target: Target, aliases: set[str]) -> bool:
+    ident = (getattr(target, "identifier", "") or "").strip().lower()
+    if ident and ident in aliases:
+        return True
+    meta = getattr(target, "meta", None) or {}
+    for key in ("uniprot", "name", "gene"):
+        v = str(meta.get(key, "")).strip().lower()
+        if v and v in aliases:
+            return True
+    return False
+
+
 def _record_from_row(row: dict, ref: ReferenceAntibody) -> DesignRecord | None:
     """Turn one exported Foundry design into a DesignRecord."""
     vh = (row.get("vh") or row.get("binder_sequence") or "").strip().upper()
@@ -287,11 +328,16 @@ def _record_from_row(row: dict, ref: ReferenceAntibody) -> DesignRecord | None:
     return rec
 
 
-def _replay(batch_dir: Path, ref: ReferenceAntibody) -> tuple[list[DesignRecord], list[str]]:
+def _replay(
+    batch_dir: Path, ref: ReferenceAntibody, target: Target | None = None
+) -> tuple[list[DesignRecord], list[str]]:
     records: list[DesignRecord] = []
     sources: list[str] = []
     seen: set[str] = set()
     for path in _batch_files(batch_dir):
+        if target is not None and not _target_matches(target, _batch_targets(path)):
+            sources.append(f"{path.name} (skipped: generated against another target)")
+            continue
         n_before = len(records)
         for line in path.read_text().splitlines():
             line = line.strip()
@@ -498,7 +544,7 @@ def run(
         records = [r for r in (_record_from_row(x, ref) for x in rows) if r]
         how = "live"
     else:
-        records, sources = _replay(batch_dir, ref)
+        records, sources = _replay(batch_dir, ref, target)
         if records:
             how = "replay"
 
@@ -508,6 +554,16 @@ def run(
         # are not designs.
         records = _stub_candidates(n, ref, random.Random(seed))
         how = "stub"
+        if how == "stub" and _batch_files(batch_dir):
+            # Batches exist but none was generated against this target. Say so,
+            # rather than replaying anti-HER2 designs for something else.
+            for rec in records:
+                rec.note(
+                    "generate",
+                    f"no committed batch was generated against {target.identifier!r} — "
+                    "falling back to the stub rather than replaying designs made for "
+                    "another target",
+                )
 
     # Deterministic subset when more designs are committed than asked for.
     #

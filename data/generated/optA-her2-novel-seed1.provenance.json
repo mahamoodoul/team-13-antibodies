@@ -1,4 +1,19 @@
-{"weight": "her2-novel-2026-11-09", "num_replicates": 100, "seed": 1, "sequence_tsr_k": "unset",
- "compile": "true", "recycle_strategy": "high/front_loaded",
- "input": "Data/12-her2/her2_cdrh3.yaml", "track": "optimisation",
- "started_utc": "2026-11-14T10:11:28Z", "image": "quay.io/apheris/oslo-hackathon:apheris-rfd4-proteina-v0.3.0-her2-novel-2026-11-09"}
+{
+  "weight": "her2-novel-2026-11-09",
+  "num_replicates": 100,
+  "seed": 1,
+  "sequence_tsr_k": "unset",
+  "compile": "true",
+  "recycle_strategy": "high/front_loaded",
+  "input": "Data/12-her2/her2_cdrh3.yaml",
+  "track": "optimisation",
+  "started_utc": "2026-11-14T10:11:28Z",
+  "image": "quay.io/apheris/oslo-hackathon:apheris-rfd4-proteina-v0.3.0-her2-novel-2026-11-09",
+  "target": "P04626",
+  "target_aliases": [
+    "P04626",
+    "HER2",
+    "ERBB2"
+  ],
+  "_target_note": "Replay is restricted to this target. These are anti-HER2 designs; replaying them for another target would return confidently wrong candidates."
+}
