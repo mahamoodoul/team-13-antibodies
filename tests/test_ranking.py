@@ -433,6 +433,83 @@ class TestPortfolio(unittest.TestCase):
         self.assertFalse(report["submission_ready"])
         self.assertTrue(any("abguard" in b for b in report["blockers"]))
 
+    def _picked_at_distance(self, design_id, distance, capped=False):
+        r = make(design_id, "WEGDKFYMMH")
+        r.axes = {a: 0.5 for a in AXES}
+        r.gates.passed = True
+        nov = {"verdict": "pass", "min_substitutions_from_any_provided": distance}
+        if capped:
+            nov["min_substitutions_is_capped_at"] = distance
+        r.gates.checks = {"novelty": nov, "abguard": {"status": "pass"}}
+        portfolio.run([r], budget=1)
+        self.assertTrue(r.selected)
+        return r, portfolio.audit([r], budget=1)
+
+    def test_audit_refuses_a_pick_closer_than_the_submittable_distance(self):
+        """The strict reading is enforced at the gate, which is the right place.
+        This is the check that it worked, and it reads the MEASURED distance —
+        not is_borderline(), which the gate no longer sets, so a check built on
+        that flag would pass vacuously on every real run."""
+        _, report = self._picked_at_distance("too-close", 2)
+        self.assertFalse(report["novelty_distance_verified"])
+        self.assertFalse(report["submission_ready"])
+        self.assertEqual(report["picks_too_close"], ["too-close (d=2)"])
+        self.assertTrue(any("strict reading" in b for b in report["blockers"]))
+
+    def test_audit_accepts_a_pick_at_the_submittable_distance(self):
+        _, report = self._picked_at_distance("far-enough", 3)
+        self.assertTrue(report["novelty_distance_verified"])
+        self.assertEqual(report["picks_too_close"], [])
+
+    def test_a_capped_distance_is_at_least_its_cap_not_exactly_it(self):
+        """A capped value means "at least this much", so a distance capped at the
+        threshold cannot be too close — the truth can only be larger. Treating a
+        cap as an exact value is what made two earlier attempts at this filter
+        appear to do nothing."""
+        _, report = self._picked_at_distance("capped", 3, capped=True)
+        self.assertTrue(report["novelty_distance_verified"])
+
+    def test_audit_refuses_a_pick_with_no_measured_distance(self):
+        """Unmeasured is not the same as far enough."""
+        r = make("unmeasured", "WEGDKFYMMH")
+        r.axes = {a: 0.5 for a in AXES}
+        r.gates.passed = True
+        r.gates.checks = {"abguard": {"status": "pass"}}
+        portfolio.run([r], budget=1)
+        report = portfolio.audit([r], budget=1)
+        self.assertEqual(report["picks_without_measured_distance"], ["unmeasured"])
+        self.assertFalse(report["submission_ready"])
+        self.assertTrue(any("Unmeasured" in b for b in report["blockers"]))
+
+    def test_audit_counts_what_the_strict_reading_cost(self):
+        """56 designs on the current pool. A number we should be able to say on
+        stage rather than infer there."""
+        keep = make("keep", "WEGDKFYMMH")
+        keep.axes = {a: 0.5 for a in AXES}
+        keep.gates.passed = True
+        keep.gates.checks = {
+            "novelty": {"verdict": "pass", "min_substitutions_from_any_provided": 3},
+            "abguard": {"status": "pass"},
+        }
+        lost = make("lost", "QRTDWYFDVL")
+        lost.gates.passed = False
+        lost.gates.failed_rules = ["novelty: 2 substitutions from the nearest provided sequence"]
+        lost.gates.checks = {
+            "novelty": {"verdict": "fail", "min_substitutions_from_any_provided": 2}
+        }
+        # Fails the distance rule AND something else, so it is not a design the
+        # strict reading cost us — it was never submittable.
+        other = make("other", "HHPLNNSTWG")
+        other.gates.passed = False
+        other.gates.failed_rules = ["novelty: 2 substitutions", "CDRH3 identity 0.70 >= 0.7"]
+        other.gates.checks = {
+            "novelty": {"verdict": "fail", "min_substitutions_from_any_provided": 2}
+        }
+
+        portfolio.run([keep, lost, other], budget=1)
+        report = portfolio.audit([keep, lost, other], budget=1)
+        self.assertEqual(report["designs_priced_out_by_strict_reading"], 1)
+
     def test_audit_flags_single_track_concentration(self):
         recs = []
         for i, cdrh3 in enumerate(["WEGDKFYMMH", "QRTDWYFDVL", "HHPLNNSTWG", "ADGKIRTEPQ"]):

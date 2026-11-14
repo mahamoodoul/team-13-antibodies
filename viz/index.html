@@ -142,6 +142,7 @@
 
       <div class="card">
         <h2>The four</h2>
+        <p id="novPolicy" style="margin:0 0 10px;font-size:13px;line-height:1.5;color:#444"></p>
         <div style="overflow-x:auto">
           <table id="picks">
             <thead><tr>
@@ -227,6 +228,24 @@
     });
 
     var a = DATA.audit;
+
+    // State the reading rather than let four green "dist 3" pills imply the
+    // rule was never in doubt. The cost is part of the claim, not a footnote.
+    var np = document.getElementById("novPolicy");
+    if (np && a && a.submittable_distance) {
+      np.replaceChildren(
+        el("b", {}, ["Novelty distance: strict, ≥ " + a.submittable_distance + " substitutions."]),
+        document.createTextNode(
+          " \"More than 2 point mutations from any provided antibody\" is read strictly, "
+          + "though the filter as measured accepts 2. It cost "
+          + (a.designs_priced_out_by_strict_reading || 0) + " designs that failed nothing else. "
+          + (a.novelty_distance_verified
+              ? "All four picks are verified against their measured distance."
+              : "⚠ NOT VERIFIED — see the blockers above; do not submit this shortlist.")
+        )
+      );
+    }
+
     if (a && a.blockers && a.blockers.length) {
       var b = document.getElementById("blockers");
       b.hidden = false;

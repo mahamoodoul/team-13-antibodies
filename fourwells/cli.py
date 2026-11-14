@@ -45,6 +45,18 @@ def _print_report(result, target, ref, paths, cache) -> None:
     for reason, n in sorted(reasons.items(), key=lambda kv: -kv[1]):
         print(f"    {DIM}{n:>3}× {reason}{R}")
 
+    # The novelty-distance reading is a judgment call, not a measurement, so it
+    # is printed on every run rather than left in a file someone has to open.
+    from .stages.portfolio import audit as _audit
+
+    rep = _audit(result.records, budget=len(result.selected) or 4)
+    ok = rep["novelty_distance_verified"]
+    print(
+        f"\n{B}  novelty distance{R}  strict, >= {rep['submittable_distance']} substitutions  "
+        + (f"{GRN}all picks verified{R}" if ok else f"{RED}NOT VERIFIED{R}")
+        + f"  {DIM}cost {rep['designs_priced_out_by_strict_reading']} otherwise-passing designs{R}"
+    )
+
     print(f"\n{B}  selected{R}")
     if not result.selected:
         print(f"    {RED}nothing selected{R}")

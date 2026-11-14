@@ -33,6 +33,7 @@ from dataclasses import dataclass, field
 from .. import features
 from ..align import identity
 from ..schema import AXES, DesignRecord
+from .gates import SUBMITTABLE_DISTANCE
 
 # CDRH3 identity at or above this puts two designs in the same cluster: they
 # are variations on one loop hypothesis, not two.
@@ -351,16 +352,81 @@ def audit(records: list[DesignRecord], budget: int = 4) -> dict:
         if ((r.gates.checks or {}).get("abguard") or {}).get("status") != "pass"
     ]
 
+    # The novelty-distance reading is a judgment call, not a measurement, so the
+    # output has to state which one this shortlist obeys and prove it obeys it.
+    # Ruhit's gate (SUBMITTABLE_DISTANCE) is what enforces the strict reading and
+    # it is the right place for it — this is the check that it worked, derived
+    # from the records rather than from the constant. Reading the constant would
+    # only restate the intent; a judge is entitled to see the outcome. It is also
+    # the one thing that still catches a lenient verdict carried in from a future
+    # generation export, which is exactly how the first three attempts at this
+    # filter silently did nothing.
+    # Checked against each pick's MEASURED distance, not against is_borderline().
+    # Under Ruhit's gate a distance-2 design fails outright and is never flagged
+    # borderline, so is_borderline() is now always False on a real run and a
+    # check built on it would pass vacuously — which is the same shape of mistake
+    # as the tiebreaker that started this.
+    too_close: list[str] = []
+    undecided: list[str] = []
+    for r in picked:
+        nov = (r.gates.checks or {}).get("novelty") or {}
+        d = nov.get("min_substitutions_from_any_provided")
+        if d is None:
+            undecided.append(r.design_id)
+        elif int(d) < SUBMITTABLE_DISTANCE and not nov.get("min_substitutions_is_capped_at"):
+            # A capped value means "at least this", so it cannot be too close.
+            too_close.append(f"{r.design_id} (d={d})")
+
+    # The designs the strict reading cost us, counted for the pitch rather than
+    # inferred on stage: at distance 2, and failing nothing else.
+    priced_out = [
+        r
+        for r in records
+        if not r.is_baseline
+        and not r.gates.passed
+        and ((r.gates.checks or {}).get("novelty") or {}).get(
+            "min_substitutions_from_any_provided"
+        )
+        == 2
+        and len(r.gates.failed_rules) == 1
+        and "novelty" in r.gates.failed_rules[0]
+    ]
+
     out: dict = {
         "n_selected": len(picked),
         "budget": budget,
         "clusters_represented": sorted({r.cluster for r in picked if r.cluster}),
         "tracks": tracks,
         "joint_scores": {r.design_id: r.joint_score for r in picked},
-        "submission_ready": not unverified_abguard and len(picked) == budget,
+        "submittable_distance": SUBMITTABLE_DISTANCE,
+        "novelty_distance_verified": not too_close and not undecided,
+        "picks_too_close": too_close,
+        "picks_without_measured_distance": undecided,
+        "designs_priced_out_by_strict_reading": len(priced_out),
+        "submission_ready": (
+            not unverified_abguard
+            and len(picked) == budget
+            and not too_close
+            and not undecided
+        ),
     }
 
     blockers: list[str] = []
+    if too_close:
+        blockers.append(
+            f"{len(too_close)} pick(s) are closer than {SUBMITTABLE_DISTANCE} "
+            f"substitutions to a provided sequence ({', '.join(too_close)}). The team "
+            "took the strict reading of 'more than 2' at 12:43, so either the gate is "
+            "not enforcing it or a lenient verdict was carried in from the generation "
+            "export — which is how the first three attempts at this filter silently "
+            "did nothing. Do not submit this shortlist."
+        )
+    if undecided:
+        blockers.append(
+            f"{len(undecided)} pick(s) have no measured distance to the provided set "
+            f"({', '.join(undecided)}). Unmeasured is not the same as far enough, and "
+            "a design nobody can place cannot go in the ranked list."
+        )
     if unverified_abguard:
         blockers.append(
             f"{len(unverified_abguard)} of the shortlist have no abguard pass "
