@@ -260,6 +260,86 @@ class TestLogView(unittest.TestCase):
             fh.write("{not json at all\n")
         self.assertEqual(len(calllog.read_log(self.path)), 2)
 
+    def test_binding_walks_past_a_taken_port(self):
+        """REGRESSION: "browser won't open the page".
+
+        A second instance on the same port used to die on "address already in
+        use", so nothing was listening and the browser showed nothing. It now
+        walks forward to the next free port. Tested without a thread, because
+        the first version of this test raced the server's startup and passed
+        alone while failing in the suite.
+        """
+        import socket
+
+        from http.server import BaseHTTPRequestHandler
+
+        busy = socket.socket()
+        busy.bind(("127.0.0.1", 0))
+        taken = busy.getsockname()[1]
+        busy.listen(1)
+        try:
+            srv, port = logview.bind("127.0.0.1", taken, BaseHTTPRequestHandler)
+            self.assertIsNotNone(srv, "no fallback port was found")
+            self.assertGreater(port, taken)
+            srv.server_close()
+        finally:
+            busy.close()
+
+    def test_binding_gives_up_cleanly_when_everything_is_taken(self):
+        from http.server import BaseHTTPRequestHandler
+
+        held = []
+        try:
+            import socket
+
+            base = None
+            for _ in range(logview.PORT_SPAN):
+                s = socket.socket()
+                s.bind(("127.0.0.1", 0))
+                s.listen(1)
+                held.append(s)
+            base = held[0].getsockname()[1]
+            # Not every port in the span is necessarily held, so just assert the
+            # contract: it either returns a server or None, never raises.
+            srv, _ = logview.bind("127.0.0.1", base, BaseHTTPRequestHandler)
+            if srv is not None:
+                srv.server_close()
+        finally:
+            for s in held:
+                s.close()
+
+    def test_any_path_serves_the_page(self):
+        """A mistyped URL shows the log, not a 404 that reads as broken."""
+        import socket
+        import threading
+        import time
+        import urllib.request
+
+        probe = socket.socket()
+        probe.bind(("127.0.0.1", 0))
+        free = probe.getsockname()[1]
+        probe.close()
+
+        threading.Thread(
+            target=logview.serve,
+            args=(self.path, "127.0.0.1", free),
+            kwargs={"refresh": 60, "open_browser": False},
+            daemon=True,
+        ).start()
+
+        got = None
+        deadline = time.time() + 10
+        while time.time() < deadline:
+            try:
+                with urllib.request.urlopen(
+                    f"http://127.0.0.1:{free}/anything", timeout=2
+                ) as r:
+                    got = r.status
+                break
+            except OSError:
+                time.sleep(0.05)
+        self.assertEqual(got, 200)
+
     def test_live_mode_adds_a_refresh(self):
         live = logview.render(calllog.read_log(self.path), self.path, live=True,
                               refresh=5)

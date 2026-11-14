@@ -7,6 +7,24 @@ Two S-tier designs beat ten that each improve one thing.
 Full brief: **[docs/brief.md](docs/brief.md)** — submission rules, data, models, scoring.
 The plan: **[docs/plan.md](docs/plan.md)** — strategy, who owns what, the day, the pitch.
 
+## Run locally
+
+Python 3.10+ is enough for the offline demo; no packages or API keys are needed.
+From this project directory:
+
+```bash
+make local
+```
+
+Open http://127.0.0.1:4173, choose a run folder, then open `report.html`.
+Press Ctrl-C to stop. The server exposes only generated results.
+The demo uses stub candidates and heuristic scores, not validated antibody designs.
+
+Other commands: `make unit` runs the tests; `make demo` writes reports without
+starting a server; `make watch` opens the live call log on localhost.
+Project Claude sessions are saved locally in `chat-history/claude-project/`.
+That directory is gitignored; raw histories can contain credentials.
+
 ## Start here
 
 Ask in `#team-13` for the **VM IP and the SSH key**. The API keys are already on the

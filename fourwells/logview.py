@@ -319,19 +319,57 @@ def render(entries: list[dict], log_path: Path, live: bool = False,
     return "\n".join(H) + "\n"
 
 
+PORT_SPAN = 20  # how far forward to look when the requested port is taken
+
+
+def bind(host: str, port: int, handler):
+    """First free port at or after `port`. Returns (server, port) or (None, port).
+
+    Split out of `serve` so the fallback is testable without starting a thread
+    and racing it — which is exactly how the first version of its test failed.
+    """
+    from http.server import ThreadingHTTPServer
+
+    for candidate in range(port, port + PORT_SPAN):
+        try:
+            return ThreadingHTTPServer((host, candidate), handler), candidate
+        except OSError:
+            continue
+    return None, port
+
+
 def serve(log_path: Path, host: str = "127.0.0.1", port: int = 8765,
-          refresh: int = 3) -> None:
-    """Live view on loopback. Re-reads the log on every request."""
-    from http.server import BaseHTTPRequestHandler, HTTPServer
+          refresh: int = 3, open_browser: bool = True) -> None:
+    """Live view on loopback. Re-reads the log on every request.
+
+    Threaded, because a browser holds connections open and a single-threaded
+    server can sit there looking alive while the page never loads. Any path
+    serves the page rather than 404-ing, so a mistyped URL still works, and if
+    the port is taken we move to the next free one and say so instead of dying
+    on "address already in use".
+    """
+    import webbrowser
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
     class Handler(BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"  # keep-alive; browsers expect it
+
         def do_GET(self):  # noqa: N802
-            if self.path not in ("/", "/index.html"):
-                self.send_error(404)
+            if self.path == "/favicon.ico":
+                self.send_response(204)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
                 return
-            body = render(read_log(log_path), log_path, live=True,
-                          refresh=refresh).encode()
-            self.send_response(200)
+            try:
+                body = render(read_log(log_path), log_path, live=True,
+                              refresh=refresh).encode()
+                code = 200
+            except Exception as exc:  # noqa: BLE001 — show the error, don't hang
+                body = (f"<!DOCTYPE html><meta charset=utf-8>"
+                        f"<title>call log error</title>"
+                        f"<pre>{html.escape(repr(exc))}</pre>").encode()
+                code = 500
+            self.send_response(code)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "no-store")
@@ -341,9 +379,126 @@ def serve(log_path: Path, host: str = "127.0.0.1", port: int = 8765,
         def log_message(self, *a):  # quiet; the page is the output
             pass
 
-    srv = HTTPServer((host, port), Handler)
-    print(f"call log: http://{host}:{port}/  (re-reads {log_path} every {refresh}s)")
-    print("Ctrl-C to stop.")
+    srv, port = bind(host, port, Handler)
+    if srv is None:
+        print(f"could not bind any port in {port}..{port + PORT_SPAN - 1} on {host}.")
+        print("Something else is using them. Pass --port to pick another.")
+        return
+
+    url = f"http://{host}:{port}/"
+    print(f"\n  call log  {url}")
+    print(f"  reading   {log_path}")
+    print(f"  refresh   every {refresh}s · Ctrl-C to stop\n")
+    if open_browser:
+        try:
+            webbrowser.open(url)
+        except Exception:  # noqa: BLE001 — a headless box has no browser
+            print("  (could not open a browser automatically — open the URL above)")
+    try:
+        srv.serve_forever()
+    except KeyboardInterrupt:
+        print("\nstopped")
+    finally:
+        srv.server_close()
+
+
+def serve_all(root: Path, host: str = "127.0.0.1", port: int = 4173,
+              open_browser: bool = True, refresh: int = 3) -> None:
+    """One local site: the newest report, every past run, and the live call log.
+
+    `file://` is where this fell over in practice — a path printed to a terminal
+    is not a UI, and a browser pointed at a directory of run folders is two
+    clicks from anything useful. This serves a landing page that links straight
+    to the things you actually want, and opens it.
+    """
+    import webbrowser
+    from http.server import SimpleHTTPRequestHandler
+
+    log_path = root / "logs" / "calls.jsonl"
+
+    def runs() -> list[Path]:
+        d = root / "results"
+        return sorted((p for p in d.glob("*/") if (p / "report.html").exists()),
+                      reverse=True) if d.exists() else []
+
+    def index() -> bytes:
+        rs = runs()
+        H = ["<!DOCTYPE html><html lang=en><meta charset=utf-8>",
+             "<title>FourWells — local</title>", f"<style>{_CSS}</style>",
+             "<body><main><h1>FourWells</h1>",
+             '<p class="sub">Local only · everything below is served from '
+             f"<code>{_h(root)}</code></p>"]
+        if rs:
+            newest = rs[0].name
+            H.append(f'<h2>Latest run</h2><p><a href="/results/{_h(newest)}/report.html">'
+                     f"Open the shortlist report</a> · <code>{_h(newest)}</code></p>")
+        else:
+            H.append("<h2>No runs yet</h2><p>Run <code>make demo</code>, then reload.</p>")
+        H.append('<h2>Call log</h2><p><a href="/logs/">Live call log</a> — '
+                 "every request, response and timing, refreshing automatically.</p>")
+        if len(rs) > 1:
+            H.append("<h2>Past runs</h2><ul>")
+            for r in rs[1:]:
+                H.append(f'<li><a href="/results/{_h(r.name)}/report.html">'
+                         f"{_h(r.name)}</a></li>")
+            H.append("</ul>")
+        H.append("</main></body></html>")
+        return "\n".join(H).encode()
+
+    class Handler(SimpleHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
+        def __init__(self, *a, **kw):
+            super().__init__(*a, directory=str(root), **kw)
+
+        def _send(self, body: bytes, code: int = 200,
+                  ctype: str = "text/html; charset=utf-8") -> None:
+            self.send_response(code)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(body)
+
+        def do_GET(self):  # noqa: N802
+            if self.path in ("/", "/index.html"):
+                self._send(index())
+                return
+            if self.path.rstrip("/") == "/logs":
+                # Rendered fresh on every hit, so it is genuinely live.
+                self._send(render(read_log(log_path), log_path, live=True,
+                                  refresh=refresh).encode())
+                return
+            if self.path == "/favicon.ico":
+                self._send(b"", 204, "image/x-icon")
+                return
+            super().do_GET()
+
+        def log_message(self, *a):
+            pass
+
+    wanted = port
+    srv, port = bind(host, port, Handler)
+    if srv is None:
+        print(f"could not bind a port near {port}. Pass --port to choose another.")
+        return
+    if port != wanted:
+        # Silently moving ports is how "the page won't open" happens: something
+        # stale answers on the port you remember, and the real server is
+        # somewhere else. Say it plainly and name the way out.
+        print(f"\n  ! port {wanted} is already in use by something else — "
+              f"using {port} instead.")
+        print(f"  ! if an old server is stuck there: "
+              f"lsof -nP -iTCP:{wanted} -sTCP:LISTEN")
+    url = f"http://{host}:{port}/"
+    print(f"\n  FourWells  {url}")
+    print(f"  serving    {root}")
+    print("  Ctrl-C to stop\n")
+    if open_browser:
+        try:
+            webbrowser.open(url)
+        except Exception:  # noqa: BLE001
+            print("  (open the URL above yourself — no browser available here)")
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
@@ -363,10 +518,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--serve", action="store_true", help="live view on localhost")
     ap.add_argument("--port", type=int, default=8765)
     ap.add_argument("--refresh", type=int, default=3, help="live refresh seconds")
+    ap.add_argument("--no-open", action="store_true",
+                    help="do not open a browser automatically")
     a = ap.parse_args(argv)
 
     if a.serve:
-        serve(a.log, port=a.port, refresh=a.refresh)
+        serve(a.log, port=a.port, refresh=a.refresh, open_browser=not a.no_open)
         return 0
 
     entries = read_log(a.log)
@@ -376,6 +533,16 @@ def main(argv: list[str] | None = None) -> int:
     print(f"wrote {out} ({len(entries)} calls)")
     if not entries:
         print("the log is empty — run `make demo` first")
+    # Print the file:// URL and open it. A bare path is not clickable in every
+    # terminal, and "it wrote a file somewhere" is not a UI.
+    print(f"  {out.resolve().as_uri()}")
+    if not a.no_open:
+        import webbrowser
+
+        try:
+            webbrowser.open(out.resolve().as_uri())
+        except Exception:  # noqa: BLE001
+            pass
     return 0
 
 

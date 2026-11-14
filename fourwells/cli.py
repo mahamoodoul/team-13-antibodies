@@ -154,7 +154,18 @@ def cmd_logs(args) -> int:
         argv += ["--serve", "--port", str(args.port), "--refresh", str(args.refresh)]
     if args.out:
         argv += ["--out", args.out]
+    if args.no_open:
+        argv += ["--no-open"]
     return logview_main(argv)
+
+
+def cmd_serve(args) -> int:
+    """One local site for the whole thing, and it opens the browser itself."""
+    from .logview import serve_all
+
+    root = Path(args.root) if args.root else Path(__file__).resolve().parent.parent
+    serve_all(root, port=args.port, open_browser=not args.no_open)
+    return 0
 
 
 def cmd_schema(args) -> int:
@@ -204,7 +215,18 @@ def build_parser() -> argparse.ArgumentParser:
     lg.add_argument("--port", type=int, default=8765)
     lg.add_argument("--refresh", type=int, default=3, help="live refresh seconds")
     lg.add_argument("--out", default=None, help="where to write the static page")
+    lg.add_argument("--no-open", action="store_true",
+                    help="do not open a browser automatically")
     lg.set_defaults(func=cmd_logs)
+
+    sv = sub.add_parser(
+        "serve", help="browse everything locally: reports and the live call log"
+    )
+    sv.add_argument("--port", type=int, default=4173)
+    sv.add_argument("--root", default=None, help="project directory to serve")
+    sv.add_argument("--no-open", action="store_true",
+                    help="do not open a browser automatically")
+    sv.set_defaults(func=cmd_serve)
 
     return p
 
