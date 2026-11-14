@@ -554,16 +554,45 @@ def abguard_check(rec: DesignRecord, failed: list[str], checks: dict, abguard: s
     try:
         out = json.loads(proc.stdout)
     except json.JSONDecodeError:
-        # A build that does not speak JSON: a zero exit is a pass, anything
-        # else is a failure whose reason we still name from stderr.
-        status = "pass" if proc.returncode == 0 else "fail"
+        # Non-JSON output. A zero exit is still a pass, but a NON-zero exit is
+        # ambiguous and must not be read as a verdict on the design.
+        #
+        # WHY THIS IS NOT "fail": nobody on this team has ever run abguard. It
+        # is not on the VM, not in pip, not in the bucket. The invocation above
+        # — subcommand `check`, flag `--json`, payload on stdin — is an
+        # ASSUMPTION, not something we verified against the tool. So the first
+        # time this code meets the real binary, the likeliest non-zero exit is
+        # us calling it wrong, not it rejecting the molecule.
+        #
+        # Recording that as "abguard rejected" would fail every design in the
+        # pool at once, for a reason that has nothing to do with any design,
+        # on the evening we submit. An unverified interface earns ERROR, which
+        # blocks submission-readiness and says why, instead of silently
+        # condemning 400 molecules.
+        raw = (proc.stderr or proc.stdout).strip()
+        if proc.returncode == 0:
+            checks["abguard"] = {
+                "status": "pass",
+                "raw": (proc.stdout or proc.stderr).strip()[:300],
+                "note": "non-JSON output; zero exit taken as a pass",
+            }
+            return
         checks["abguard"] = {
-            "status": status,
-            "raw": (proc.stdout or proc.stderr).strip()[:300],
-            "note": "non-JSON output; verdict taken from exit code",
+            "status": "ERROR",
+            "returncode": proc.returncode,
+            "raw": raw[:300],
+            "why": (
+                "non-zero exit with non-JSON output. Our invocation "
+                f"({abguard} check --json -) was never verified against the real "
+                "tool, so this cannot be distinguished from a usage error and is "
+                "NOT recorded as a rejection of this design. Confirm the real "
+                "command and output format, then re-run."
+            ),
         }
-        if proc.returncode != 0:
-            failed.append(f"abguard rejected: {proc.stderr.strip()[:120] or 'exit ' + str(proc.returncode)}")
+        failed.append(
+            f"abguard could not be interpreted (exit {proc.returncode}) — "
+            "verify the invocation, this is not a verdict on the design"
+        )
         return
 
     checks["abguard"] = {"status": "pass" if out.get("passed", True) else "fail", "raw": out}
