@@ -108,12 +108,44 @@ def check(row: dict, rec: dict, parent: dict) -> list[str]:
         if c % 2:
             bad.append(f"{label} carries {c} cysteines, an odd number")
 
-    # Optimisation-track designs keep trastuzumab's framework. Compare with the
-    # loops removed so a redesigned CDRH3 is not read as a framework change.
+    # Optimisation-track designs keep trastuzumab's framework. "Framework" means
+    # everything outside the CDRs -- ALL of them, not just CDRH3.
+    #
+    # Masking only CDRH3 was right for the optA/optB batches, which redesign
+    # that loop alone. It is wrong for multicdr: `antibody-2026-10-30` exists to
+    # redesign any CDR on a fixed framework, so those designs legitimately vary
+    # in CDRH1 and CDRH2 and this check read every one of them as a corrupted
+    # framework. multicdr-her2_multicdr_98 failed here with 13 substitutions, all
+    # 13 inside CDRs (H1 2, H2 4, H3 7) and none in framework.
+    #
+    # That false positive is expensive in both directions: it prints "do not
+    # submit this sheet" over a correct molecule, and multicdr is the batch kept
+    # specifically so the shortlist is not four variants of one loop -- so the
+    # design most likely to be dropped on a bad verdict is the one carrying our
+    # diversity.
     if (rec.get("track") or "") == "optimisation" and rec.get("parent") == "trastuzumab":
-        pcd = parent["cdrs_kabat"]["cdr_h3"]
-        if vh.replace(cdrh3, "", 1) != parent["vh"]["sequence"].replace(pcd, "", 1):
-            bad.append("VH framework differs from trastuzumab outside CDRH3")
+        pk = parent["cdrs_kabat"]
+        design_cdrs = [cdrh3]
+        parent_cdrs = [pk["cdr_h3"]]
+        # H1 and H2 are masked positionally: a redesigned loop is not in the
+        # record, so mask by the parent's loop where it is still present and
+        # otherwise fall back to length-matched masking at the same offset.
+        vh_masked, parent_masked = vh, parent["vh"]["sequence"]
+        for key in ("cdr_h1", "cdr_h2"):
+            ploop = pk.get(key)
+            if not ploop:
+                continue
+            at = parent_masked.find(ploop)
+            if at < 0:
+                continue
+            parent_masked = parent_masked[:at] + "." * len(ploop) + parent_masked[at + len(ploop):]
+            vh_masked = vh_masked[:at] + "." * len(ploop) + vh_masked[at + len(ploop):]
+        for dloop, ploop in zip(design_cdrs, parent_cdrs):
+            vh_masked = vh_masked.replace(dloop, "", 1)
+            parent_masked = parent_masked.replace(ploop, "", 1)
+
+        if vh_masked != parent_masked:
+            bad.append("VH framework differs from trastuzumab outside the CDRs")
         if vl != parent["vl"]["sequence"]:
             bad.append("VL differs from trastuzumab")
     return bad
