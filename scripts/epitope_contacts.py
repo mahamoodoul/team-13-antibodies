@@ -15,6 +15,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import math
 from pathlib import Path
 
@@ -109,8 +110,19 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("cif", type=Path)
     ap.add_argument("--cutoff", type=float, default=DEFAULT_CUTOFF)
+    ap.add_argument(
+        "--json",
+        action="store_true",
+        help="emit the full block, in the same shape the batch records carry it. "
+             "The baseline needs this: its CIF lives on the VM, which is wiped "
+             "tonight, so the contacts have to be committed as data or the "
+             "epitope control cannot be rerun.",
+    )
     args = ap.parse_args()
     res = contacts(args.cif, cutoff=args.cutoff)
+    if args.json:
+        print(json.dumps(res, sort_keys=True))
+        return
     print(f"{res['n_contacts']} target residues within {args.cutoff} A of the binder")
     print("contacts:", res["contacts"])
 

@@ -1,6 +1,6 @@
 # FourWells — shortlist
 
-*2026-11-14 12:26 · 4 designs for 4 lab slots · chosen from 261 eligible of 401 generated*
+*2026-11-14 12:44 · 4 designs for 4 lab slots · chosen from 261 eligible of 401 generated*
 
 Every axis is scored against trastuzumab at 0.50. S-tier requires beating the
 baseline on all three at once, so the joint score is a product, not a mean: a
@@ -38,14 +38,14 @@ design that is excellent on two axes and hopeless on the third is not a candidat
 - **stability** 0.61 ▲ — 0 framework substitutions, hydrophobic-patch burden +0.00 and pI 9.0 vs 8.1; dominant terms pi_distance +0.26, abs_net_charge +0.09
 
 **Entry gates.** length 242 aa (construct) ≤ 250 · CDRH3 identity 0.40 < 0.70 · 6 substitutions · abguard NOT RUN  
-novelty: pass — ≥3 (capped) substitutions from any of the 525,063 provided · recomputed locally from the committed universe
+novelty: pass — ≥3 substitutions from any of the 525,063 provided · recomputed locally from the committed universe
 
 **Why this one.**
 
 - Binding: 6 of 10 CDRH3 positions changed against an affinity-matured parent; paratope-residue content +10%, aromatics +20%
 - Epitope: optimisation-track variant retaining 83% of trastuzumab's CDR paratope — it binds where trastuzumab binds, so this axis is close to free
 - Stability: 0 framework substitutions, hydrophobic-patch burden +0.00 and pI 9.0 vs 8.1; dominant terms pi_distance +0.26, abs_net_charge +0.09
-- Represents cluster c96 — optimisation track, trastuzumab scaffold, CDRH3 family YPGRYFYTYD (1 design). A hypothesis no other design in the shortlist tests.
+- Represents cluster c91 — optimisation track, trastuzumab scaffold, CDRH3 family YPGRYFYTYD (1 design). A hypothesis no other design in the shortlist tests.
 - On the list because its strongest axis is stability (0.61) and it clears every entry gate.
 - Structure confidence contributed nothing positive to this score: the cutoff is not yet calibrated against the 454 measured non-binders, so high confidence is ignored by policy rather than trusted.
 
@@ -80,14 +80,14 @@ IK
 - **stability** 0.51 ≈ — 0 framework substitutions, hydrophobic-patch burden +0.00 and pI 8.1 vs 8.1; dominant terms loop_glycine +0.05, pi_distance -0.00
 
 **Entry gates.** length 242 aa (construct) ≤ 250 · CDRH3 identity 0.40 < 0.70 · 6 substitutions · abguard NOT RUN  
-novelty: pass — ≥2 (capped) substitutions from any of the 525,063 provided · recomputed locally from the committed universe
+novelty: pass — ≥2 substitutions from any of the 525,063 provided · generation export
 
 **Why this one.**
 
 - Binding: 6 of 10 CDRH3 positions changed against an affinity-matured parent; paratope-residue content +20%, aromatics +20%
 - Epitope: optimisation-track variant retaining 83% of trastuzumab's CDR paratope — it binds where trastuzumab binds, so this axis is close to free
 - Stability: 0 framework substitutions, hydrophobic-patch burden +0.00 and pI 8.1 vs 8.1; dominant terms loop_glycine +0.05, pi_distance -0.00
-- Represents cluster c125 — optimisation track, trastuzumab scaffold, CDRH3 family WWDGSFYSYD (1 design). A hypothesis no other design in the shortlist tests.
+- Represents cluster c120 — optimisation track, trastuzumab scaffold, CDRH3 family WWDGSFYSYD (1 design). A hypothesis no other design in the shortlist tests.
 - On the list because its strongest axis is stability (0.51) and it clears every entry gate.
 - Novelty borderline: exactly 2 substitutions from the nearest provided sequence. It passes the filter as Ruhit measured it, but the project wording reads as 'more than 2', so this pick is contingent on that reading. Confirm with an Apheris mentor before submitting.
 - Structure confidence contributed nothing positive to this score: the cutoff is not yet calibrated against the 454 measured non-binders, so high confidence is ignored by policy rather than trusted.
@@ -123,14 +123,14 @@ IK
 - **stability** 0.56 ▲ — 0 framework substitutions, hydrophobic-patch burden +0.00 and pI 8.6 vs 8.1; dominant terms pi_distance +0.15, loop_glycine +0.05
 
 **Entry gates.** length 242 aa (construct) ≤ 250 · CDRH3 identity 0.40 < 0.70 · 6 substitutions · abguard NOT RUN  
-novelty: pass — ≥3 (capped) substitutions from any of the 525,063 provided · recomputed locally from the committed universe
+novelty: pass — ≥3 substitutions from any of the 525,063 provided · recomputed locally from the committed universe
 
 **Why this one.**
 
 - Binding: 6 of 10 CDRH3 positions changed against an affinity-matured parent; paratope-residue content +0%, aromatics +30%
 - Epitope: optimisation-track variant retaining 83% of trastuzumab's CDR paratope — it binds where trastuzumab binds, so this axis is close to free
 - Stability: 0 framework substitutions, hydrophobic-patch burden +0.00 and pI 8.6 vs 8.1; dominant terms pi_distance +0.15, loop_glycine +0.05
-- Represents cluster c137 — optimisation track, trastuzumab scaffold, CDRH3 family WYQYGYYAYE (1 design). A hypothesis no other design in the shortlist tests.
+- Represents cluster c132 — optimisation track, trastuzumab scaffold, CDRH3 family WYQYGYYAYE (1 design). A hypothesis no other design in the shortlist tests.
 - On the list because its strongest axis is stability (0.56) and it clears every entry gate.
 - Structure confidence contributed nothing positive to this score: the cutoff is not yet calibrated against the 454 measured non-binders, so high confidence is ignored by policy rather than trusted.
 
@@ -165,14 +165,14 @@ IK
 - **stability** 0.62 ▲ — 0 framework substitutions, hydrophobic-patch burden +0.00 and pI 9.3 vs 8.1; dominant terms pi_distance +0.35, abs_net_charge +0.14
 
 **Entry gates.** length 242 aa (construct) ≤ 250 · CDRH3 identity 0.50 < 0.70 · 5 substitutions · abguard NOT RUN  
-novelty: pass — ≥3 (capped) substitutions from any of the 525,063 provided · recomputed locally from the committed universe
+novelty: pass — ≥3 substitutions from any of the 525,063 provided · recomputed locally from the committed universe
 
 **Why this one.**
 
 - Binding: 5 of 10 CDRH3 positions changed against an affinity-matured parent; paratope-residue content +20%, aromatics +0%
 - Epitope: optimisation-track variant retaining 86% of trastuzumab's CDR paratope — it binds where trastuzumab binds, so this axis is close to free
 - Stability: 0 framework substitutions, hydrophobic-patch burden +0.00 and pI 9.3 vs 8.1; dominant terms pi_distance +0.35, abs_net_charge +0.14
-- Represents cluster c130 — optimisation track, trastuzumab scaffold, CDRH3 family WGNRGVYRYD (1 design). A hypothesis no other design in the shortlist tests.
+- Represents cluster c125 — optimisation track, trastuzumab scaffold, CDRH3 family WGNRGVYRYD (1 design). A hypothesis no other design in the shortlist tests.
 - On the list because its strongest axis is stability (0.62) and it clears every entry gate.
 - Structure confidence contributed nothing positive to this score: the cutoff is not yet calibrated against the 454 measured non-binders, so high confidence is ignored by policy rather than trusted.
 

@@ -1,33 +1,162 @@
 {
-  "_read_this_before_using_iptm": "Boltz-2 ipTM barely separates binders from non-binders. On the 91x91 Smorodina matrices, 94.3% of shuffled non-binding pairs score ipTM >= 0.7 (median 0.88) against 99% of cognate pairs (median 0.91). AF3 separates far better: 3.0% of shuffled vs 47% of cognate at that cutoff. So a design scoring above this baseline on ipTM has NOT been shown to bind better. Use refold confidence as a feature, never as the binding score.",
-  "_what": "The baseline row. Folded through the identical path as every design: same model, same 1N8Z template, same seed, same flags.",
-  "design_id": "trastuzumab",
-  "measured_kd_median_nM": 0.1345,
-  "measured_kd_nM": [
-    0.02851802,
-    0.0378713,
-    0.07916459,
-    0.123,
-    0.146,
-    0.152,
-    0.165,
-    0.178
-  ],
-  "refold": {
-    "_binder_plddt_method": "mean per-atom pLDDT over chain B. Verified to reproduce refold-score's binder_plddt exactly on designs that went through refold-score.",
-    "_min_ipae_absent": "min_ipae is a refold-score output comparing a design to its refold. The parent has no design to compare against, so it has no min_ipae. Compare designs to each other on min_ipae, and to the parent on iptm/ptm/plddt.",
-    "binder_plddt": 98.3851,
-    "global_pde": 0.283,
-    "iptm": 0.96,
-    "model": "boltz2",
-    "plddt": 97.18,
-    "plddt_by_chain": {
-      "A": 98.553,
-      "B": 98.3851,
-      "C": 94.6296,
-      "D": 93.7692
-    },
-    "ptm": 0.969,
-    "ranking_score": 0.969
+ "_epitope_control": "The parent's own refold, measured the same way as every design. This is the control for the epitope axis: trastuzumab's epitope on HER2 is known from 1N8Z, so a measurement that cannot recover it here cannot be trusted on a design. Both models are carried because they disagree and only one of them passes. Rerun with scripts/epitope_control.py; the CIFs were on the VM.",
+ "_read_this_before_using_iptm": "Boltz-2 ipTM barely separates binders from non-binders. On the 91x91 Smorodina matrices, 94.3% of shuffled non-binding pairs score ipTM >= 0.7 (median 0.88) against 99% of cognate pairs (median 0.91). AF3 separates far better: 3.0% of shuffled vs 47% of cognate at that cutoff. So a design scoring above this baseline on ipTM has NOT been shown to bind better. Use refold confidence as a feature, never as the binding score.",
+ "_what": "The baseline row. Folded through the identical path as every design: same model, same 1N8Z template, same seed, same flags.",
+ "design_id": "trastuzumab",
+ "epitope_contacts": [
+  557,
+  558,
+  560,
+  561,
+  569,
+  570,
+  571,
+  572,
+  573,
+  579,
+  591,
+  593,
+  596,
+  598,
+  600,
+  602,
+  603,
+  604,
+  605
+ ],
+ "epitope_contacts_by_model": {
+  "boltz2": {
+   "binder_chains": [
+    "A",
+    "B",
+    "H",
+    "L"
+   ],
+   "contacts": [
+    557,
+    558,
+    560,
+    561,
+    569,
+    570,
+    571,
+    572,
+    573,
+    579,
+    591,
+    593,
+    596,
+    598,
+    600,
+    602,
+    603,
+    604,
+    605
+   ],
+   "cutoff_angstrom": 4.5,
+   "min_distance_by_residue": {
+    "557": 3.97,
+    "558": 3.07,
+    "560": 2.53,
+    "561": 3.12,
+    "569": 3.27,
+    "570": 3.4,
+    "571": 2.72,
+    "572": 3.31,
+    "573": 3.24,
+    "579": 4.32,
+    "591": 3.08,
+    "593": 2.36,
+    "596": 3.32,
+    "598": 3.27,
+    "600": 3.69,
+    "602": 2.18,
+    "603": 3.37,
+    "604": 3.98,
+    "605": 3.81
+   },
+   "n_contacts": 19,
+   "target_chains": [
+    "C",
+    "D"
+   ]
+  },
+  "protenix-v2": {
+   "binder_chains": [
+    "A",
+    "B",
+    "H",
+    "L"
+   ],
+   "contacts": [
+    548,
+    549,
+    551,
+    555,
+    563,
+    564,
+    569,
+    594,
+    596,
+    597,
+    598,
+    600,
+    602,
+    603,
+    605
+   ],
+   "cutoff_angstrom": 4.5,
+   "min_distance_by_residue": {
+    "548": 2.68,
+    "549": 3.1,
+    "551": 4.16,
+    "555": 4.03,
+    "563": 2.75,
+    "564": 3.93,
+    "569": 3.91,
+    "594": 4.22,
+    "596": 3.0,
+    "597": 2.42,
+    "598": 2.91,
+    "600": 4.39,
+    "602": 3.13,
+    "603": 2.88,
+    "605": 4.1
+   },
+   "n_contacts": 15,
+   "target_chains": [
+    "C",
+    "D"
+   ]
   }
+ },
+ "epitope_contacts_source": "boltz2",
+ "measured_kd_median_nM": 0.1345,
+ "measured_kd_nM": [
+  0.02851802,
+  0.0378713,
+  0.07916459,
+  0.123,
+  0.146,
+  0.152,
+  0.165,
+  0.178
+ ],
+ "refold": {
+  "_binder_plddt_method": "mean per-atom pLDDT over chain B. Verified to reproduce refold-score's binder_plddt exactly on designs that went through refold-score.",
+  "_min_ipae_absent": "min_ipae is a refold-score output comparing a design to its refold. The parent has no design to compare against, so it has no min_ipae. Compare designs to each other on min_ipae, and to the parent on iptm/ptm/plddt.",
+  "binder_plddt": 98.3851,
+  "global_pde": 0.283,
+  "iptm": 0.96,
+  "model": "boltz2",
+  "plddt": 97.18,
+  "plddt_by_chain": {
+   "A": 98.553,
+   "B": 98.3851,
+   "C": 94.6296,
+   "D": 93.7692
+  },
+  "ptm": 0.969,
+  "ranking_score": 0.969
+ }
 }

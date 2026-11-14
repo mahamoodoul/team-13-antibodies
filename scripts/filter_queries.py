@@ -39,7 +39,31 @@ def main():
         help="also keep designs with exactly 3 substitutions, which pass the "
              "Apheris reading of the identity ceiling but fail the strict <70% one",
     )
+    ap.add_argument(
+        "--prefer-ids",
+        type=Path,
+        help="file of example_ids, one per line, to fold before anything else. "
+             "The ranker's own order, so the fold budget lands on the designs we "
+             "are actually considering rather than the ones refold-prepare liked",
+    )
+    ap.add_argument(
+        "--only-ids",
+        action="store_true",
+        help="with --prefer-ids, fold nothing else",
+    )
     args = ap.parse_args()
+
+    # WHY THIS EXISTS. --rank-by is a design metric (H-bond pairs by default),
+    # which is what refold-prepare ranks on. It has no relationship to the joint
+    # score that decides what we submit: of the 20 optB designs we folded on
+    # that ranking, not one was in the ranker's top four, so every pick's
+    # epitope axis was still a prior while 20 folds sat on designs we were not
+    # considering. Folding is the expensive step; spend it where the decision is.
+    prefer: list[str] = []
+    if args.prefer_ids:
+        prefer = [
+            l.strip() for l in args.prefer_ids.read_text().splitlines() if l.strip()
+        ]
 
     by_example: dict[str, dict] = {}
     for line in args.designs.read_text().splitlines():
@@ -71,10 +95,20 @@ def main():
             continue
         kept.append((q, row, False))
 
+    if prefer and args.only_ids:
+        wanted = set(prefer)
+        kept = [item for item in kept if item[0]["query_id"] in wanted]
+
+    rank_of = {ex: i for i, ex in enumerate(prefer)}
+
     def sort_key(item):
-        _, row, borderline = item
+        q, row, borderline = item
         metric = (row.get("design_metrics") or {}).get(args.rank_by)
-        return (borderline, -(metric if isinstance(metric, (int, float)) else -1))
+        return (
+            rank_of.get(q["query_id"], len(rank_of)),
+            borderline,
+            -(metric if isinstance(metric, (int, float)) else -1),
+        )
 
     kept.sort(key=sort_key)
     capped = kept[: args.max]
@@ -87,6 +121,12 @@ def main():
     print(f"folding:     {len(capped)} -> {args.out}")
     if len(kept) > len(capped):
         print(f"  (capped at --max {args.max}, ranked by {args.rank_by})")
+    if prefer:
+        hit = sum(1 for q, _, _ in capped if q["query_id"] in rank_of)
+        missing = [ex for ex in prefer if ex not in {q["query_id"] for q, _, _ in kept}]
+        print(f"  {hit} of {len(prefer)} --prefer-ids designs are in this fold set")
+        if missing:
+            print(f"  NOT foldable from this run ({len(missing)}): {' '.join(missing)}")
     n_border = sum(1 for _, _, b in capped if b)
     if n_border:
         print(f"  including {n_border} borderline 3-substitution designs (--allow-borderline)")
