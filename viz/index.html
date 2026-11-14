@@ -249,7 +249,12 @@
     if (a && a.blockers && a.blockers.length) {
       var b = document.getElementById("blockers");
       b.hidden = false;
-      b.appendChild(el("b", {}, ["Not submission-ready"]));
+      // The title follows the audit's verdict. A note that still needs a human
+      // decision (such as confirming the track mix) must not read as a failed check.
+      var ready = a.submission_ready === true;
+      b.appendChild(el("b", {}, [ready
+        ? "Passes every check. Open for a decision:"
+        : "Not submission-ready"]));
       var ul = el("ul", {});
       a.blockers.forEach(function (t) { ul.appendChild(el("li", {}, [t])); });
       b.appendChild(ul);
