@@ -1,17 +1,41 @@
 # Shortlist visualiser
 
-Two views of the same run: the **scored pool** (which designs the ranker saw, where the four
-picks sit, what got rejected and why) and the **structure** of whichever design is selected.
+Two pages, built from different things, and the difference matters:
+
+| | built from | shows |
+| --- | --- | --- |
+| `results.html` | **`results/`, the committed submission** | what we are sending, and what the pool it came from looks like |
+| `index.html` | a live pipeline run | the scored pool, each design's dossier, and the trastuzumab–HER2 complex in 3D |
 
 ```bash
+make viz                            # rebuild results.html from results/ (runs in `make submission`)
+open viz/results.html               # no server needed, the data is inlined
+
 python3 -I viz/build_data.py        # regenerate viz/designs.json from the pipeline
 python3 -m http.server -d viz 8000  # then open http://localhost:8000
 ```
 
-Serve it rather than opening `index.html` directly — browsers block `fetch` of a sibling file
+Serve `index.html` rather than opening it directly — browsers block `fetch` of a sibling file
 over `file://`, so the data and any structure file will not load. The page says so if you do.
+`results.html` carries its data inside the file and opens straight from disk.
 
-## What it shows
+## results.html — the submission
+
+One page over the run in `results/`: the four picks with their axes, CDRH3 alignment and
+epitope footprint; every candidate on one logarithmic axis grouped by generator batch; what
+each batch cost at the gates; a sortable table of all of them; and what the scores rest on,
+including the pipeline's own submission blockers.
+
+`build_results.py` rewrites only the block between the two `DATA` markers, so the page's code
+is hand-written and its numbers never are. It recomputes nothing — it reads the same records
+the ranker wrote, through `fourwells`' own helpers, so a number on the page and the same number
+in `report.md` cannot disagree. `python3 -I viz/build_results.py --check` exits non-zero when
+the page is stale, which is the thing to run if you suspect it has drifted.
+
+The page states the sha256 of the `designs.jsonl` it was built from, in the header and again
+in the footer, so you can tell at a glance which run you are looking at.
+
+## index.html — the live pool
 
 The scatter is **CDRH3 substitutions from trastuzumab** against **joint P(S-tier)**, which is
 `P(binding) × P(epitope) × P(stability)`. Two things are worth reading off it:
