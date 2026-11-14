@@ -180,6 +180,14 @@ class TestHonesty(unittest.TestCase):
         for text in (self.md, self.hl):
             self.assertIn("prediction", text.lower())
 
+    def test_legacy_report_cannot_claim_calibrated_probabilities_or_thermostability(self):
+        for text in (self.md, self.hl):
+            self.assertIn("Legacy heuristic preview", text)
+            self.assertIn("not a thermostability prediction", text)
+            self.assertNotIn("Each axis is a probability", text)
+            self.assertNotIn("Each axis is the probability", text)
+            self.assertNotIn("joint P(S-tier)", text)
+
     def test_every_axis_is_labelled_predicted(self):
         """The dossier renders client-side, so the label lives in the template.
 

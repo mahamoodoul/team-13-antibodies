@@ -1,0 +1,12 @@
+{
+  "documentation": "docs/installed-vm-instructions.txt",
+  "verified_against_installed_docs": false,
+  "notes": "Populate stage argv with a wrapper verified against the installed tutorial. This example intentionally cannot execute models.",
+  "stages": {
+    "design": {"version": null, "argv": []},
+    "validation": {"version": null, "argv": []},
+    "refold_prepare": {"version": null, "argv": []},
+    "predict": {"version": null, "argv": []},
+    "refold_score": {"version": null, "argv": []}
+  }
+}

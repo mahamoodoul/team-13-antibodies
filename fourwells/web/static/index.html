@@ -3,16 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>FourWells</title>
+<title>AntibodyLab AI</title>
 <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
 <header>
   <div class="wrap">
-    <a class="brand" href="/">FourWells</a>
+    <a class="brand" href="/experiments">AntibodyLab AI</a>
     <nav>
-      <a href="/" data-nav="/">Overview</a>
-      <a href="/runs" data-nav="/runs">Runs</a>
+      <a href="/" data-nav="/">Legacy overview</a>
+      <a href="/experiments" data-nav="/experiments">Experiments</a>
+      <a href="/compare" data-nav="/compare">Compare</a>
+      <a href="/runs" data-nav="/runs">Legacy runs</a>
       <a href="/logs" data-nav="/logs">Call log</a>
     </nav>
     <span class="spacer"></span>
@@ -28,10 +30,12 @@
 </main>
 
 <footer class="wrap">
-  Local only — nothing here is sent anywhere. Every number on a design is a
-  <strong>prediction</strong>, not a measurement.
+  HER2 · trastuzumab reference. Predictions and measured evidence are labelled
+  separately. Computational evidence requires laboratory validation.
 </footer>
 
+<script src="/static/molecule.js"></script>
+<script src="/static/workspace.js"></script>
 <script src="/static/app.js"></script>
 </body>
 </html>

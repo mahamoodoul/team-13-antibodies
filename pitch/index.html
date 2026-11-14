@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FourWells — Team 13</title>
+<style>
+/* No CDN, no web font, no build step. This opens from a file:// URL on a laptop
+   with no network, because at 18:05 the venue wifi is not a dependency we take. */
+:root{
+  --ink:#111317; --dim:#6b7280; --line:#e5e7eb; --bg:#fff;
+  --accent:#1d4ed8; --warn:#b45309; --bad:#b91c1c; --good:#15803d;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  color:var(--ink); background:#0b0c0f; display:flex; align-items:center;
+  justify-content:center; overflow:hidden;
+}
+#deck{width:100vw;height:100vh;display:flex;align-items:center;justify-content:center}
+.slide{
+  display:none; width:min(1280px,96vw); height:min(720px,92vh); background:var(--bg);
+  padding:62px 74px; position:relative; flex-direction:column; justify-content:center;
+  box-shadow:0 10px 60px rgba(0,0,0,.5);
+}
+.slide.on{display:flex}
+.kicker{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:20px}
+h1{font-size:62px;line-height:1.08;letter-spacing:-1.6px;font-weight:700}
+h2{font-size:40px;line-height:1.15;letter-spacing:-.9px;font-weight:650;margin-bottom:26px}
+.lead{font-size:27px;line-height:1.4;color:#2b2f36;margin-top:22px;max-width:30ch}
+.big{font-size:88px;font-weight:700;letter-spacing:-2.6px;line-height:1}
+ul{list-style:none;margin-top:10px}
+li{font-size:22px;line-height:1.5;margin:14px 0;padding-left:26px;position:relative;max-width:46ch}
+li:before{content:"";position:absolute;left:0;top:13px;width:11px;height:2px;background:var(--accent)}
+li b{font-weight:650}
+.cols{display:flex;gap:48px;align-items:flex-start}
+.col{flex:1}
+.stats{display:flex;gap:40px;margin:14px 0 26px}
+.stat{flex:1}
+.stat .n{font-size:64px;font-weight:700;letter-spacing:-2px;line-height:1}
+.stat .n.bad{color:var(--bad)} .stat .n.good{color:var(--good)}
+.stat .l{font-size:15px;color:var(--dim);margin-top:9px;line-height:1.35;max-width:22ch}
+.punch{
+  font-size:26px;font-weight:600;border-left:4px solid var(--accent);
+  padding:12px 0 12px 20px;margin-top:8px;max-width:44ch;
+}
+table{border-collapse:collapse;font-size:17px;margin-top:6px}
+th,td{text-align:left;padding:6px 20px 6px 0;border-bottom:1px solid var(--line)}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);font-weight:600}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92em}
+.flow{display:flex;align-items:center;gap:10px;margin:26px 0 8px;flex-wrap:wrap}
+.box{border:1.5px solid var(--ink);padding:13px 17px;font-size:16px;font-weight:600}
+.box small{display:block;font-weight:400;color:var(--dim);font-size:12.5px;margin-top:3px}
+.arrow{color:var(--dim);font-size:20px}
+.note{font-size:15.5px;color:var(--dim);margin-top:22px;max-width:62ch;line-height:1.5}
+.todo{
+  background:#fff7ed;border:2px solid var(--warn);padding:22px 26px;margin-top:18px;
+}
+.todo h3{color:var(--warn);font-size:15px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px}
+.todo p{font-size:18px;line-height:1.5;max-width:56ch}
+.todo code{background:#fff;border:1px solid #fde3c4;padding:1px 6px;font-size:15px}
+#n{position:absolute;bottom:26px;right:30px;font-size:13px;color:var(--dim)}
+#brand{position:absolute;bottom:26px;left:74px;font-size:13px;color:var(--dim);letter-spacing:.04em}
+#notes{
+  display:none;position:fixed;left:0;right:0;bottom:0;background:#111317;color:#e8eaed;
+  padding:16px 26px;font-size:15px;line-height:1.5;border-top:2px solid var(--accent);
+}
+#notes.on{display:block}
+#notes b{color:#93b4ff}
+#hint{position:fixed;top:12px;right:16px;color:#6b7280;font-size:12px}
+@media print{
+  body{background:#fff;display:block;overflow:visible}
+  #deck{display:block;width:auto;height:auto}
+  .slide{display:flex!important;width:100%;height:100vh;page-break-after:always;box-shadow:none;padding:50px 58px}
+  #hint,#notes{display:none!important}
+}
+</style>
+</head>
+<body>
+<div id="hint">← → navigate · N notes · P print</div>
+<div id="deck">
+
+<!-- 1 ---------------------------------------------------------------->
+<section class="slide on" data-note="Say it, then stop for a beat. Do not explain the pipeline yet. Let the room sit with the number four.">
+  <div class="kicker">Team 13 · FourWells</div>
+  <h1>Four of our designs<br>are guaranteed a well.</h1>
+  <div class="lead">Trastuzumab is the thing to beat.<br><b>Which four do we send?</b></div>
+  <div id="brand">AI × Antibodies · Oslo · 14 Nov 2026</div>
+  <div id="n">1 / 7</div>
+</section>
+
+<!-- 2 ---------------------------------------------------------------->
+<section class="slide" data-note="The point of this slide is that candidate count is not the game. Everyone will have thousands. Say: 'nobody in this room wins on candidate count.'">
+  <div class="kicker">Why this is hard</div>
+  <h2>S-tier means beating trastuzumab<br>on all three axes at once.</h2>
+  <div class="cols">
+    <div class="col">
+      <table>
+        <tr><th>Axis</th><th>How the lab measures it</th></tr>
+        <tr><td><b>Binding</b></td><td>SPR</td></tr>
+        <tr><td><b>Epitope</b></td><td>competitive binding vs trastuzumab</td></tr>
+        <tr><td><b>Thermostability</b></td><td>direct measurement</td></tr>
+      </table>
+      <div class="note">S = all three. A = two. B = one.<br>Most S-tier designs wins the track.</div>
+    </div>
+    <div class="col">
+      <div class="punch">Everyone here has thousands of candidates by three o&rsquo;clock.<br><br>Nobody wins on candidate count. The prize is decided by a <b>ranking</b>.</div>
+    </div>
+  </div>
+  <div id="n">2 / 7</div>
+</section>
+
+<!-- 3 ---------------------------------------------------------------->
+<section class="slide" data-note="Twenty seconds. Do not linger — this is the slide every other team will spend three minutes on. The funnel numbers are from the committed demo run.">
+  <div class="kicker">What we built</div>
+  <h2>A ranking engine, not a generator.</h2>
+  <div class="flow">
+    <div class="box">Generate<small>Foundry RFD4-Proteina</small></div><span class="arrow">→</span>
+    <div class="box">Gate<small>abguard + cheap checks</small></div><span class="arrow">→</span>
+    <div class="box">Three axes<small>one predictor each</small></div><span class="arrow">→</span>
+    <div class="box">Portfolio<small>4 slots, 4 hypotheses</small></div><span class="arrow">→</span>
+    <div class="box">Order sheet<small>what the lab makes</small></div>
+  </div>
+  <ul>
+    <li><b>Every rejection carries a named reason</b> — the reason distribution is an output, so drift in generation is visible immediately.</li>
+    <li><b>Offline and deterministic.</b> Fixed seed, committed cache, no network. A judge reproduces our numbers with no GPU.</li>
+    <li><b>Re-renders without re-running anything</b> — the records are the evidence, the report is a view of them.</li>
+  </ul>
+  <div id="n">3 / 7</div>
+</section>
+
+<!-- 4 ---------------------------------------------------------------->
+<section class="slide" data-note="This is the judgment slide. The product-not-sum point is the one to land: excellent on two axes and hopeless on the third scores ZERO S-tier, and an average hides exactly that.">
+  <div class="kicker">How we decide</div>
+  <h2>Four decisions we can defend.</h2>
+  <ul>
+    <li><b>Epitope is near-free in optimisation and fatal in de novo.</b> So every de novo design is conditioned on HER2 domain IV, and one with no structural evidence it gets there is <i>capped, not guessed</i>.</li>
+    <li><b>Stability is the beatable axis</b> — so it gets the real effort.</li>
+    <li><b>We rank on the joint probability, not a weighted sum.</b> Excellent on two axes and hopeless on the third scores zero S-tier. An average hides precisely that; a product cannot.</li>
+    <li><b>Never four slots on four variants of one parent.</b> Slots are allocated across clusters, so four wells buy four hypotheses.</li>
+  </ul>
+  <div id="n">4 / 7</div>
+</section>
+
+<!-- 5 ---------------------------------------------------------------->
+<section class="slide" data-note="THE slide. Get here fast. Lead with the null result — a team that names its own failure mode reads as credible, one showing only wins reads as overfitted. Then the exclusions, then the two named mistakes.">
+  <div class="kicker">The proof — and it is a null result</div>
+  <h2>We trained the obvious model.<br>It does not work, and we can show why.</h2>
+  <div class="stats">
+    <div class="stat"><div class="n good">0.879</div><div class="l">AUC on held-out FACS variants (edit distance &gt; 7, zero shared CDRH3)</div></div>
+    <div class="stat"><div class="n bad">0.508</div><div class="l">AUC on the SPR-measured designs we are actually allowed to submit — <b>chance</b></div></div>
+    <div class="stat"><div class="n">0.750</div><div class="l">plain CDRH3 identity to trastuzumab, same designs</div></div>
+  </div>
+  <div class="punch">A 524,346-row training set loses to a string comparison.</div>
+  <div class="note">
+    <b>Why, measurably:</b> the FACS label itself only predicts a tighter K<sub>D</sub> at AUC 0.608 (n = 27 molecules carrying both). The ceiling is the assay gap, not the model &mdash; so no model fit to these labels can clear it.
+    <b>The pool is 114</b> after removing 48 too similar to the parent to be submittable, 17 training leaks, 8 parent replicates and 3 non-10-mers &mdash; every exclusion removes designs that would have flattered us.
+    <b>Our two worst calls:</b> <span class="mono">YNAGMYVYTG</span> ranked 1 of 114 and measures 124&nbsp;nM; <span class="mono">WKGYGSYVHD</span> binds at 0.723&nbsp;nM and ranked 112 of 114.
+  </div>
+  <div id="n">5 / 7</div>
+</section>
+
+<!-- 6 ---------------------------------------------------------------->
+<section class="slide" data-note="The most concrete thing any team puts on screen. One line per design: the hypothesis, the three axes against the baseline, the kill criterion. FILL THIS FROM THE ORDER SHEET.">
+  <div class="kicker">Our four · 4 of 205 eligible, from 401 generated</div>
+  <h2>Four wells, four hypotheses.</h2>
+  <table style="font-size:15.5px;width:100%">
+    <tr>
+      <th>#</th><th>Design</th><th>CDRH3</th><th>Subs</th>
+      <th>Binding</th><th>Epitope</th><th>Stability</th><th>Joint</th><th>Kill criterion</th>
+    </tr>
+    <tr><td>&mdash;</td><td><b>trastuzumab</b></td><td class="mono">WGGDGFYAMD</td><td>&mdash;</td>
+      <td><b>0.500</b></td><td><b>0.500</b></td><td><b>0.500</b></td><td><b>0.125</b></td>
+      <td style="color:#6b7280">the baseline, by construction</td></tr>
+    <tr><td>1</td><td class="mono">optA_46</td><td class="mono">SYSTSYYYFD</td><td>8</td>
+      <td>0.25 ▼</td><td>0.34 ▼ <small>prior</small></td><td>0.57 ▲</td><td>0.046</td>
+      <td>SPR K<sub>D</sub> above parent</td></tr>
+    <tr><td>2</td><td class="mono">optB_10</td><td class="mono">YPGRYFYTYD</td><td>6</td>
+      <td>0.23 ▼</td><td>0.29 ▼ <b>structural</b></td><td>0.61 ▲</td><td>0.041</td>
+      <td>SPR K<sub>D</sub> above parent</td></tr>
+    <tr><td>3</td><td class="mono">optA_21</td><td class="mono">WKSSYYYYFD</td><td>7</td>
+      <td>0.28 ▼</td><td>0.23 ▼ <b>structural</b></td><td>0.60 ▲</td><td>0.038</td>
+      <td>no longer displaces trastuzumab</td></tr>
+    <tr><td>4</td><td class="mono">optA_55</td><td class="mono">YASLYNYYFD</td><td>8</td>
+      <td>0.18 ▼</td><td>0.34 ▼ <small>prior</small></td><td>0.57 ▲</td><td>0.034</td>
+      <td>SPR K<sub>D</sub> above parent</td></tr>
+  </table>
+  <div class="note" style="margin-top:16px">
+    <b>Four clusters, four ideas</b> &mdash; c30, c135, c119, c79. A failure costs us one hypothesis, not the shortlist. <b>Two score epitope from measured structure</b> (75% and 65% domain IV coverage), two from the paratope-conservation prior.
+    <b>Every row is below 0.500 on binding</b>, and that is the honest shape of the bet: the &lt;70% CDRH3 rule forces us off an affinity-matured loop, so we are buying stability and epitope and paying for it in affinity. <b>All four are optimisation track</b> &mdash; deliberate, not discovered.
+  </div>
+  <div id="n">6 / 7</div>
+</section>
+
+<!-- 7 ---------------------------------------------------------------->
+<section class="slide" data-note="Close on the slot arithmetic: a good pitch is not separate from the lab result, it buys more shots at it. Then stop talking.">
+  <div class="kicker">What is next</div>
+  <h2>The ranking layer outlives this challenge.</h2>
+  <div class="cols">
+    <div class="col">
+      <ul>
+        <li><b>Every design ships with a kill criterion</b>, so the lab result is informative either way — we wrote down what would falsify each one before seeing any data.</li>
+        <li><b>The ranking layer is generation-agnostic.</b> Gates, axes and portfolio read the record, not the antigen — we rehearsed it blind on two targets it had never seen.</li>
+        <li><b>What we did not do:</b> try to out-model Foundry in seven hours.</li>
+      </ul>
+    </div>
+    <div class="col">
+      <div class="punch">Placing today earns 12, 8 or 4 extra wells on top of the guaranteed four.<br><br>A good pitch is not separate from the lab result. It buys more shots at it.</div>
+    </div>
+  </div>
+  <div class="note"><b>Honest limit:</b> generation does not yet retarget — the reference antibody stays trastuzumab whatever target you pass. The ranking layer retargets; the generator does not. See <span class="mono">docs/blind-rehearsal.md</span>.</div>
+  <div id="n">7 / 7</div>
+</section>
+
+</div>
+<div id="notes"></div>
+
+<script>
+(function(){
+  var s = [].slice.call(document.querySelectorAll('.slide')), i = 0, notesOn = false;
+  var notes = document.getElementById('notes');
+  function draw(){
+    s.forEach(function(el,k){ el.classList.toggle('on', k===i); });
+    notes.innerHTML = '<b>Slide ' + (i+1) + '</b> — ' + (s[i].dataset.note || '');
+    try { location.hash = 's' + (i+1); } catch(e){}
+  }
+  function go(d){ i = Math.max(0, Math.min(s.length-1, i+d)); draw(); }
+  document.addEventListener('keydown', function(e){
+    if (e.key==='ArrowRight'||e.key===' '||e.key==='PageDown'){ e.preventDefault(); go(1); }
+    else if (e.key==='ArrowLeft'||e.key==='PageUp'){ e.preventDefault(); go(-1); }
+    else if (e.key==='Home'){ i=0; draw(); }
+    else if (e.key==='End'){ i=s.length-1; draw(); }
+    else if (e.key==='n'||e.key==='N'){ notesOn=!notesOn; notes.classList.toggle('on',notesOn); }
+    else if (e.key==='p'||e.key==='P'){ window.print(); }
+    else if (e.key>='1'&&e.key<='7'){ i=+e.key-1; draw(); }
+  });
+  document.addEventListener('click', function(e){ if(!e.target.closest('#notes')) go(1); });
+  var m = (location.hash||'').match(/^#s(\d+)$/);
+  if (m) i = Math.max(0, Math.min(s.length-1, +m[1]-1));
+  draw();
+})();
+</script>
+</body>
+</html>

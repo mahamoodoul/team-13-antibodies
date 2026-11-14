@@ -1,4 +1,4 @@
-# Team-13 — AI × Antibodies Hackathon, Oslo
+# AntibodyLab AI — Team 13, Oslo
 
 Improving **trastuzumab** (anti-HER2). Designs are measured by Adaptyv on three axes:
 binding (SPR), epitope preservation, thermostability. Beat all three = S-tier.
@@ -16,14 +16,55 @@ From this project directory:
 make local
 ```
 
-Open http://127.0.0.1:4173, choose a run folder, then open `report.html`.
-Press Ctrl-C to stop. The server exposes only generated results.
-The demo uses stub candidates and heuristic scores, not validated antibody designs.
+Open http://127.0.0.1:4173/experiments and select **New offline experiment**.
+The workspace preserves iteration questions, parent runs, seeds, validation,
+three separate objectives, structures and decisions. Compare iterations at
+`/compare`. Press Ctrl-C to stop the web server; detached scientific workers
+continue independently. Demo sequences are clearly marked and never enter a
+submission export. Missing evidence stays unknown.
 
-Other commands: `make unit` runs the tests; `make demo` writes reports without
-starting a server; `make watch` opens the live call log on localhost.
+`make experiment-demo` starts an offline iteration from the terminal;
+`make inventory` lists local tools/data with checksums; `make unit` runs tests.
+`make demo` and the dashboard's **Legacy runs** retain the earlier heuristic
+prototype for comparison. Those scores are not calibrated probabilities or
+experimental outcomes. `make watch` opens the legacy call log on localhost.
 Project Claude sessions are saved locally in `chat-history/claude-project/`.
 That directory is gitignored; raw histories can contain credentials.
+
+## Scientific workflow
+
+Read the [project specification](antibodylab_ai_project_README.md),
+[scientific method](docs/scientific-method.md),
+[evidence schema](docs/data-dictionary.md), and
+[model adapter instructions](docs/model-usage.md).
+
+```bash
+python3 -m fourwells.experiments start --mode import \
+  --input candidates.jsonl --question 'Inspect the first saved pilot'
+python3 -m fourwells.experiments list
+```
+
+An import without an official validation adapter remains visible but cannot
+be shortlisted. On the supplied GPU VM, configure documented commands in a
+local copy of `config/model-profile.example.json`, then run:
+
+```bash
+python3 -m fourwells.experiments start --mode live \
+  --profile config/my-verified-vm-profile.json --seed 13 --candidates 8 \
+  --question 'Does the documented HER2 design setting produce eligible candidates?'
+```
+
+Every attempt gets a new directory under `artifacts/antibodylab/`; SQLite tracks
+job state. The iteration export includes the final FASTA (at most 20 official
+passes), CSV evidence, reference/input snapshots, model logs and checksums.
+Runtime settings are explicit CLI arguments; the model profile controls external
+stage commands. The HTTP API can start offline demos only.
+
+Real RFD4-Proteina generation, official `abguard` validation and co-folding
+still require the supplied VM tools and verified organizer documentation.
+No suitable thermostability predictor or real validated candidate batch is
+bundled. See [implementation status](docs/implementation-status.md) for the
+exact completed features and external prerequisites.
 
 ## Start here
 
@@ -79,5 +120,6 @@ Done. You can run a model from any of the three.
 
 ## Where things go
 
-`results/` model outputs · `nebius-runs/` run ids · both safe to commit, both help us
-show where a number came from.
+`artifacts/antibodylab/` scientific iterations and SQLite metadata (gitignored) ·
+`results/` legacy reports · `nebius-runs/` hosted run IDs. Review exports before
+sharing: raw model logs and profiles may contain environment-specific details.

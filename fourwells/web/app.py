@@ -37,6 +37,7 @@ from urllib.parse import parse_qs, urlparse
 from ..calllog import read_log, summarise
 from ..report import SUBMISSION_CAP, build_shortlist, _verdict
 from ..schema import AXES, read_jsonl
+from ..experiments import Store, start, export_bundle, resource_status
 
 STATIC = Path(__file__).resolve().parent / "static"
 PORT_SPAN = 20
@@ -210,7 +211,7 @@ class App(BaseHTTPRequestHandler):
         except ValueError:
             self._json({"error": "not found"}, 404)
             return
-        if not p.exists():
+        if not p.is_file():
             self._json({"error": "not found"}, 404)
             return
         ctype = mimetypes.guess_type(p.name)[0] or "application/octet-stream"
@@ -219,6 +220,28 @@ class App(BaseHTTPRequestHandler):
         self._send(p.read_bytes(), 200, ctype)
 
     # -- routes ---------------------------------------------------------
+    def do_POST(self):  # noqa: N802
+        # Only a local same-origin request may start work. Model commands and
+        # paths are CLI-only; browser jobs are safe, explicit offline demos.
+        origin = self.headers.get("Origin")
+        if origin and origin != "http://" + self.headers.get("Host", ""):
+            self._json({"error": "same-origin requests only"}, 403)
+            return
+        if self.path != "/api/experiments":
+            self._json({"error": "no such endpoint"}, 404)
+            return
+        try:
+            size = int(self.headers.get("Content-Length", "0"))
+            if not 0 < size <= 16000:
+                raise ValueError("Request must contain 1–16000 bytes")
+            spec = json.loads(self.rfile.read(size))
+            if not isinstance(spec, dict) or spec.get("mode", "demo") != "demo" or any(
+                    k in spec for k in ("input", "profile")):
+                raise ValueError("Browser can start offline demos; use the CLI for imports and model execution")
+            self._json(start(self.root, spec), 202)
+        except (ValueError, TypeError) as exc:
+            self._json({"error": str(exc)}, 400)
+
     def do_GET(self):  # noqa: N802
         u = urlparse(self.path)
         path, q = u.path.rstrip("/") or "/", parse_qs(u.query)
@@ -228,6 +251,56 @@ class App(BaseHTTPRequestHandler):
             return
         if path.startswith("/static/"):
             self._static(path[len("/static/"):])
+            return
+
+        if path == "/api/experiments":
+            self._json({"iterations": Store(self.root).list(), "resources": resource_status(self.root)})
+            return
+        if path.startswith("/api/experiments/"):
+            parts = path[len("/api/experiments/"):].split("/")
+            try:
+                store = Store(self.root)
+                job = store.get(parts[0])
+                if not job:
+                    raise ValueError("No such iteration")
+                if len(parts) == 1:
+                    self._json(job)
+                elif parts[1:] == ["diversity"]:
+                    ids = q.get("candidate", [])
+                    if not 2 <= len(ids) <= 4 or len(set(ids)) != len(ids):
+                        raise ValueError("Choose 2–4 distinct candidate IDs")
+                    candidates = job.get("result", {}).get("candidates", [])
+                    picked = [c for c in candidates if c["design_id"] in ids]
+                    if len(picked) != len(ids):
+                        raise ValueError("No such candidate")
+                    from ..evidence import sequence_diversity
+                    self._json({"pairs": sequence_diversity(picked)})
+                elif parts[1:] == ["export"]:
+                    body = export_bundle(self.root, parts[0])
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/zip")
+                    self.send_header("Content-Disposition", f'attachment; filename="{parts[0]}.zip"')
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    if self.command != "HEAD":
+                        self.wfile.write(body)
+                elif len(parts) == 3 and parts[1] == "structure":
+                    # Only structures retained and checksummed by the pipeline
+                    # are visible; never serve the project root or tool logs.
+                    names = set()
+                    for c in job.get("result", {}).get("candidates", []):
+                        names.update(s["path"] for s in c.get("structures", []))
+                        if c.get("reference_structure"):
+                            names.add(c["reference_structure"])
+                    name = "structures/" + parts[2]
+                    if name not in names:
+                        raise ValueError("No saved structure")
+                    from ..structures import atoms
+                    self._json({"atoms": atoms(store.directory(parts[0]) / name)})
+                else:
+                    raise ValueError("No such resource")
+            except (ValueError, OSError) as exc:
+                self._json({"error": str(exc)}, 404)
             return
 
         if path == "/api/overview":
@@ -305,8 +378,8 @@ def serve(root: Path, host: str = "127.0.0.1", port: int = 4173,
         print(f"\n  ! port {wanted} is in use — using {port} instead.")
         print(f"  ! to find what holds it: lsof -nP -iTCP:{wanted} -sTCP:LISTEN")
 
-    url = f"http://{host}:{port}/"
-    print(f"\n  FourWells  {url}")
+    url = f"http://{host}:{port}/experiments"
+    print(f"\n  AntibodyLab AI  {url}")
     print(f"  serving    {root}")
     print("  Ctrl-C to stop\n")
     if open_browser:

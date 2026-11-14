@@ -119,3 +119,21 @@ input[type=search]{flex:1 1 14rem}
 footer{color:var(--mut);font-size:12px;border-top:1px solid var(--line);padding:1rem 1.25rem}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));gap:1rem}
 .kv{font-size:12px;color:var(--mut)} .kv b{color:var(--ink)}
+
+/* Scientific experiments */
+.badge{display:inline-block;padding:.1rem .5rem;border:1px solid var(--line);border-radius:1rem}
+.badge.complete{color:var(--good)}.badge.failed,.badge.blocked{color:var(--bad)}
+.badge.running,.badge.queued{color:var(--acc)}
+#experiment-form{padding:1rem;border:1px solid var(--line);border-radius:.5rem;max-width:48rem}
+#experiment-form input:not([type=number]){width:100%;margin-top:.4rem}
+#experiment-form input[type=number]{width:7rem}
+.candidate{margin-top:2rem;padding:1rem;border:1px solid var(--line);border-radius:.5rem}
+.sequence{white-space:pre-wrap;overflow-wrap:anywhere}
+.compare-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem}
+.molecule canvas{width:100%;height:auto;touch-action:none;border-radius:.5rem;cursor:grab}
+.chain-controls{display:flex;gap:1rem;flex-wrap:wrap;padding:.5rem}
+#evidence-table{overflow-x:auto}#candidate-detail details{margin:1rem 0}
+.objective-plot{margin:1rem 0;padding:.7rem;border:1px solid var(--line);border-radius:.5rem}
+.objective-plot svg{display:block;width:100%;max-width:750px}
+.objective-plot circle:focus{stroke:var(--ink);stroke-width:3;outline:none}
+.pairwise-diversity{overflow-x:auto}

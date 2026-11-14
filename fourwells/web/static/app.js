@@ -57,6 +57,9 @@
 
   // ---------------------------------------------------------------- router
   var routes = [
+    { re: /^\/experiments$/, page: function () { return window.antibodyWorkspace("list"); } },
+    { re: /^\/experiments\/([^/]+)$/, page: function (id) { return window.antibodyWorkspace("detail", id); } },
+    { re: /^\/compare$/, page: function () { return window.antibodyWorkspace("compare"); } },
     { re: /^\/$/, page: overview },
     { re: /^\/runs$/, page: runsList },
     { re: /^\/runs\/([^/]+)$/, page: runDetail },
@@ -112,8 +115,8 @@
       h += '<div class="cards">' +
         card(k.generated, "candidates") +
         card(k.passed, "cleared gates") +
-        card(k.submitted + " / " + k.cap, "submitted") +
-        card(k.lab_slots, "lab slots", "good") +
+        card(k.submitted + " / " + k.cap, "preview shortlist") +
+        card(k.lab_slots, "preview picks") +
         card(k.stub, "stub records", k.stub ? "warn" : "") +
         "</div>";
 
@@ -202,19 +205,19 @@
 
       h += '<div class="cards">' +
         card(k.generated, "candidates") + card(k.passed, "cleared gates") +
-        card(k.submitted + " / " + k.cap, "submitted") +
-        card(k.lab_slots, "lab slots", "good") +
+        card(k.submitted + " / " + k.cap, "preview shortlist") +
+        card(k.lab_slots, "preview picks") +
         card(k.stub, "stub", k.stub ? "warn" : "") + "</div>";
 
       (cfg.warnings || []).forEach(function (w) {
         h += '<div class="note warn">' + esc(w) + "</div>";
       });
 
-      h += '<div class="note"><p><strong>Every number below is a prediction.</strong> ' +
-        "Each axis is the probability a design beats trastuzumab on that axis, so the " +
-        "reference sits at <strong>0.500</strong> by construction — the tick on each " +
-        "bar. <code>joint</code> is the product of the three, because S-tier needs all " +
-        "three at once.</p></div>";
+      h += '<div class="note warn"><p><strong>Legacy heuristic preview.</strong> ' +
+        "These normalized sequence scores are not calibrated probabilities. The legacy " +
+        "stability proxy is developability evidence, not thermostability. Preview tiers " +
+        "and products do not establish experimental performance. Use " +
+        '<a href="/experiments">Experiments</a> for evidence, official validation and exports.</p></div>';
 
       if (Object.keys(d.failed_rules).length) {
         h += "<h2>Why candidates were rejected</h2><div class=panel><table>" +

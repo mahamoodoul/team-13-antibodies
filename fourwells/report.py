@@ -36,10 +36,26 @@ from .schema import AXES, DesignRecord, read_jsonl
 
 # The three axes, in the order the lab measures them, with how each is obtained.
 AXIS_META = {
-    "binding": ("Binding", "SPR", "predicted"),
-    "epitope": ("Epitope", "competitive binding vs trastuzumab", "predicted"),
-    "stability": ("Thermostability", "direct measurement", "predicted"),
+    "binding": ("Binding proxy", "SPR", "heuristic prediction"),
+    "epitope": ("Epitope proxy", "competitive binding vs trastuzumab", "heuristic prediction"),
+    "stability": ("Developability proxy", "thermostability requires a separate measurement", "heuristic prediction"),
 }
+
+LEGACY_WARNING = (
+    "Legacy heuristic preview — not a submission. These normalized scores are not "
+    "calibrated probabilities. The legacy stability score is a developability proxy, "
+    "not a thermostability prediction. Experimental tiers and laboratory improvement "
+    "are unknown. Use the Experiments workflow for official validation, separate "
+    "scientific evidence and guarded exports."
+)
+
+
+def _legacy_text(text: str) -> str:
+    """Correct the presentation of historical dossiers; preserve raw records."""
+    return (text.replace("Joint P(S-tier)", "Legacy score product")
+            .replace("Predicted P(competes)", "Legacy epitope proxy")
+            .replace("predicted P ", "legacy proxy ")
+            .replace("(P ", "(legacy proxy "))
 
 BASELINE = 0.5  # by construction: the reference scores 0.500 on every axis
 
@@ -178,7 +194,8 @@ def render_markdown(
     L: list[str] = []
     A = L.append
 
-    A("# FourWells — design shortlist\n")
+    A("# FourWells — legacy shortlist preview\n")
+    A(f"**{LEGACY_WARNING}**\n")
     A(f"**Target** {config.get('target', '?')} · **Reference** "
       f"{config.get('reference', '?')} · **Lab slots** {config.get('budget', 4)}\n")
     A(f"Run `{config.get('run_id', '?')}` · seed {config.get('seed', '?')} · "
@@ -187,11 +204,10 @@ def render_markdown(
 
     # --- the honest frame, first, not in an appendix ---
     A("## Read this before the table\n")
-    A("Every number below is a **prediction**. The lab measures binding by SPR, epitope "
-      "preservation by competitive binding, and thermostability directly; none of those "
-      "results exist yet. Each axis is a probability that the design beats trastuzumab on "
-      "that axis, so the reference scores exactly **0.500** everywhere by construction — "
-      "0.5 means *indistinguishable from trastuzumab*, not *average*.\n")
+    A("The values below are historical heuristic predictions. The lab measures binding "
+      "by SPR, epitope preservation by competitive binding, and thermostability directly. "
+      "The reference scores **0.500** by mathematical construction; this does not establish "
+      "experimental equivalence, calibrated uncertainty or a probability of improvement.\n")
     A("Two findings from our own validation constrain how much any of this deserves to be "
       "trusted, and both are null results:\n")
     A("- A model fit to the 524,346 FACS-labelled CDRH3 variants scores **AUC 0.879** on "
@@ -204,7 +220,8 @@ def render_markdown(
       "and Chai-1 discards 92% of known binders. Confidence is a tie-breaker here, never a "
       "filter. (`proof/tidy/iptm_calibration.md`)")
     A("- Trastuzumab is measured **8 times** in the provided SPR file, spanning **6.2×** in "
-      "KD. Any predicted improvement smaller than that is inside the assay's noise.\n")
+      "KD. This replicate spread motivates caution; it is not a calibrated uncertainty "
+      "interval for a new candidate.\n")
 
     if warnings:
         A("### Warnings from this run\n")
@@ -214,9 +231,9 @@ def render_markdown(
 
     # --- the funnel ---
     A("## Funnel\n")
-    A(f"{f['generated']} candidates → **{f['passed']} cleared every entry gate** → "
-      f"{len(build_shortlist(records, selected))} submitted, of which the top "
-      f"{len(selected)} take the guaranteed lab slots.\n")
+    A(f"{f['generated']} records → **{f['passed']} passed the legacy screen** → "
+      f"{len(build_shortlist(records, selected))} preview entries, including "
+      f"{len(selected)} preview picks. An official abguard pass is a separate requirement.\n")
     if f["failed_rules"]:
         A("Rejections by rule — a design that fails a gate is never moved to the other "
           "track, so these never reach the lab:\n")
@@ -234,15 +251,13 @@ def render_markdown(
     budget = int(config.get("budget", 4) or 4)
     shortlist = build_shortlist(records, selected)
     mix = _tier_mix(selected)
-    A("## The submission — ranked\n")
-    A(f"{len(shortlist)} designs, ranked. The organisers take up to {SUBMISSION_CAP}; the "
-      f"top **{len(selected)}** marked `lab` take the slots every team is guaranteed. The "
-      "rest are not filler — placing on the day buys 16/12/8 more slots and each judge can "
-      "nominate a favourite, so stopping the list at four would throw away every slot we "
-      "might win.\n")
-    A("`joint` is P(beats trastuzumab on all three) = the product of the three axes, not an "
-      "average. `Tier` is the predicted tier: S beats all three, A two, B one. Teams rank "
-      "by S count, then A, then B.\n")
+    A("## The submission — ranked (legacy preview only)\n")
+    A(f"{len(shortlist)} preview entries, capped at {SUBMISSION_CAP}; "
+      f"the top **{len(selected)}** marked `lab` are historical preview picks. "
+      "Their inclusion does not establish official eligibility.\n")
+    A("`joint` is the product of three heuristic proxies, not a success probability. "
+      "`Tier` is a legacy proxy label from thresholds at 0.5, not an experimental or "
+      "validated predicted tier.\n")
     A("| # | Design | Track | Tier | joint | " +
       " | ".join(AXIS_META[a][0] for a in AXES) + " | CDRH3 id | Cluster |")
     A("| --- | --- | --- | --- | --- | " + " | ".join("---" for _ in AXES) + " | --- | --- |")
@@ -254,22 +269,20 @@ def render_markdown(
           f" | {_pct(r.cdrh3_identity_to_tras)} | {r.cluster or '—'} |")
     A("")
     if mix:
-        A(f"Predicted tier mix in the {len(selected)} lab slots: " +
+        A(f"Legacy proxy labels for the {len(selected)} preview picks: " +
           ", ".join(f"**{n}× {t}**" for t, n in sorted(mix.items())) + ".")
-        A("That mix is the thing we optimise, not the top affinity. Four variants of one "
-          "parent is one bet placed four times, so the slots deliberately carry distinct "
-          "hypotheses with uncorrelated failure modes.\n")
+        A("Sequence clusters describe diversity; they do not establish independent "
+          "failure modes or experimental performance.\n")
     if len(shortlist) < SUBMISSION_CAP:
-        A(f"Only {len(shortlist)} eligible designs exist in this run, against a cap of "
-          f"{SUBMISSION_CAP}. That is a generation-volume gap, not a ranking decision — we "
-          "are leaving submission slots empty.\n")
+        A(f"This legacy preview contains {len(shortlist)} records against a cap of "
+          f"{SUBMISSION_CAP}. Eligibility must be checked in the scientific workflow.\n")
 
     # --- per-design dossier ---
-    A("## Dossiers — the lab slots\n")
-    A("Full dossiers for the designs taking the guaranteed slots. Every other design in "
+    A("## Dossiers — preview picks\n")
+    A("Historical dossiers for the preview picks. Every other record in "
       "the table above has the same fields in `designs.jsonl`.\n")
     for r in selected:
-        A(f"### {r.rank}. `{r.design_id}` — predicted tier {_verdict(r)}\n")
+        A(f"### {r.rank}. `{r.design_id}` — legacy proxy label {_verdict(r)}\n")
         A(f"- **Track** {r.track or '—'} · **Format** {r.format or '—'} · "
           f"**Parent** {r.parent or '—'} · **Cluster** {r.cluster or '—'}")
         A(f"- **Generator** `{r.generator or 'unknown'}`"
@@ -282,7 +295,7 @@ def render_markdown(
         A(f"- **Sequence** ({len(r.sequence)} aa)")
         A(f"  ```\n  {r.sequence}\n  ```")
         A("")
-        A("| Axis | Lab measures it by | P(beats trastuzumab) | Provenance |")
+        A("| Proxy | Lab validation required | Heuristic score | Provenance |")
         A("| --- | --- | --- | --- |")
         for a in AXES:
             label, how, prov = AXIS_META[a]
@@ -291,10 +304,10 @@ def render_markdown(
         if r.rationale:
             A("**Why it is on the list**\n")
             for line in r.rationale:
-                A(f"- {line}")
+                A(f"- {_legacy_text(line)}")
             A("")
         if r.kill_criterion:
-            A(f"**Kill criterion** — {r.kill_criterion}\n")
+            A(f"**Kill criterion** — {_legacy_text(r.kill_criterion)}\n")
             A("If that happens, this design was the wrong bet and we want to know which "
               "one of our four assumptions broke.\n")
 
@@ -487,7 +500,7 @@ function detail(r,scroll){
   AX.forEach(function(a){
     h+='<div><div class="kv"><b>'+esc(D.axisLabel[a])+'</b> — lab measures by '
       +esc(D.axisHow[a])+'</div>'+bar(r.ax[a])
-      +'<div style="margin-top:.35rem"><span class="chip pred">predicted</span></div></div>';
+      +'<div style="margin-top:.35rem"><span class="chip pred">predicted proxy, unvalidated</span></div></div>';
   });
   h+='</div>';
   h+='<p class="kv" style="margin-top:1rem">CDRH3 <code>'+esc(r.cdrh3||'—')
@@ -526,9 +539,9 @@ function compare(){
     });
     h+='</tr>';
   });
-  h+='<tr><th>joint P(S-tier)</th>';
+  h+='<tr><th>Legacy score product</th>';
   picks.forEach(function(r){h+='<td class="n">'+num(r.joint)+'</td>'});
-  h+='</tr><tr><th>Predicted tier</th>';
+  h+='</tr><tr><th>Legacy proxy label</th>';
   picks.forEach(function(r){h+='<td class="n tier '+esc(r.tier)+'">'+esc(r.tier)+'</td>'});
   h+='</tr><tr><th>Cluster</th>';
   picks.forEach(function(r){h+='<td class="n">'+esc(r.cluster||'—')+'</td>'});
@@ -539,8 +552,8 @@ function compare(){
   var n=Object.keys(cl).length;
   h+='<p class="kv">'+n+' distinct cluster'+(n===1?'':'s')+' among '+picks.length
     +' designs. '+(n<picks.length
-      ? 'Two of these test the same hypothesis — if it is wrong, both wells are wasted.'
-      : 'Each tests a different hypothesis, so their failure modes are uncorrelated.')+'</p>';
+      ? 'Some records share a sequence hypothesis; correlated failures remain possible.'
+      : 'Different sequence hypotheses can still share failure modes.')+'</p>';
   document.getElementById('cmp').innerHTML=h;
 }
 document.getElementById('tb').addEventListener('click',function(e){
@@ -618,12 +631,12 @@ def _payload(
             "identity": r.cdrh3_identity_to_tras,
             "cdrh3": r.cdrh3,
             "muts": r.cdrh3_mutations_from_tras,
-            "gates": "passed" if r.gates.passed else
+            "gates": "legacy screen passed (official validation separate)" if r.gates.passed else
                      "FAILED: " + ", ".join(r.gates.failed_rules or ["?"]),
             "seq": r.sequence,
             "len": len(r.sequence),
-            "why": list(r.rationale),
-            "kill": r.kill_criterion,
+            "why": [_legacy_text(line) for line in r.rationale],
+            "kill": _legacy_text(r.kill_criterion) if r.kill_criterion else None,
             "stub": bool(r.is_stub),
         })
     blob = {
@@ -656,7 +669,8 @@ def render_html(
     A(f"<title>FourWells — {_h(config.get('target', 'shortlist'))}</title>")
     A(f"<style>{_CSS}</style></head><body><main>")
 
-    A("<h1>FourWells — design shortlist</h1>")
+    A("<h1>FourWells — legacy shortlist preview</h1>")
+    A(f'<div class="frame warn"><p><strong>{_h(LEGACY_WARNING)}</strong></p></div>')
     A(f'<p class="sub">Target <strong>{_h(config.get("target", "?"))}</strong> · '
       f'reference <strong>{_h(config.get("reference", "?"))}</strong><br>'
       f'run <code>{_h(config.get("run_id", "?"))}</code> · seed '
@@ -668,23 +682,22 @@ def render_html(
     A('<div class="stats">')
     for val, label in (
         (f["generated"], "candidates"),
-        (f["passed"], "cleared the gates"),
-        (len(shortlist), f"submitted (cap {SUBMISSION_CAP})"),
-        (len(selected), "guaranteed lab slots"),
+        (f["passed"], "passed legacy screen"),
+        (len(shortlist), f"preview entries (cap {SUBMISSION_CAP})"),
+        (len(selected), "preview picks"),
         ("".join(f"{n}×{t} " for t, n in sorted(mix.items())).strip() or "—",
-         "predicted tier mix"),
+         "legacy proxy labels"),
     ):
         A(f'<div class="stat"><b>{_h(val)}</b><span>{_h(label)}</span></div>')
     A("</div>")
 
     # --- the honest frame ---
     A('<div class="frame">')
-    A("<p><strong>Every number on this page is a prediction.</strong> The lab measures "
-      "binding by SPR, epitope preservation by competitive binding, and thermostability "
-      "directly — none of those results exist yet. Each axis is the probability that the "
-      "design beats trastuzumab on that axis, so the reference scores exactly "
-      "<strong>0.500</strong> everywhere by construction. The tick on each bar is that "
-      "0.500 line: a green bar past the tick means we predict it beats trastuzumab.</p>")
+    A("<p><strong>These are historical heuristic predictions.</strong> Experimental binding "
+      "requires SPR, epitope preservation requires competitive binding, and thermostability "
+      "requires a separate predictor or measurement. The reference scores "
+      "<strong>0.500</strong> by mathematical construction. The bar tick marks that "
+      "heuristic reference value, not calibrated probability or experimental equivalence.</p>")
     A("<p>Two of our own validation results are null, and they constrain this page:</p>")
     A("<ul>")
     A("<li>A model fit to the 524,346 FACS-labelled CDRH3 variants scores AUC "
@@ -696,8 +709,8 @@ def render_html(
       "0.70, Boltz-2 admits 94% of shuffled non-binding pairs and Chai-1 discards 92% of "
       "known binders. Structure confidence is a tie-breaker here, never a filter.</li>")
     A("<li>Trastuzumab is measured 8 times in the provided SPR file, spanning "
-      "<strong>6.2×</strong> in K<sub>D</sub>. A predicted improvement smaller than that "
-      "is inside the assay's noise.</li>")
+      "<strong>6.2×</strong> in K<sub>D</sub>. This observed spread motivates caution; "
+      "it is not a calibrated uncertainty interval for a new candidate.</li>")
     A("</ul></div>")
 
     if warnings:
@@ -708,11 +721,9 @@ def render_html(
 
     # --- funnel ---
     A("<h2>Funnel</h2>")
-    A(f"<p>{f['generated']} candidates → <strong>{f['passed']} cleared every entry "
-      f"gate</strong> → {len(shortlist)} submitted, of which the top {len(selected)} take "
-      "the slots every team is guaranteed. The rest are not filler — placing on the day "
-      "buys 16/12/8 more slots and each judge can nominate a favourite, so stopping at "
-      "four would throw away every slot we might win.</p>")
+    A(f"<p>{f['generated']} records → <strong>{f['passed']} passed the legacy screen"
+      f"</strong> → {len(shortlist)} preview entries, including {len(selected)} preview "
+      "picks. Official abguard eligibility and experimental performance remain separate.</p>")
     if f["failed_rules"]:
         A("<p>Rejections by rule. A design that fails a gate is never moved to the other "
           "track, so these never reach the lab:</p>")
@@ -722,16 +733,15 @@ def render_html(
             A(f'<tr><td>{_h(rule)}</td><td class="n">{n}</td></tr>')
         A("</tbody></table>")
     if len(shortlist) < SUBMISSION_CAP:
-        A(f'<div class="frame warn"><p>Only {len(shortlist)} eligible designs exist in '
-          f"this run, against a cap of {SUBMISSION_CAP}. That is a generation-volume gap, "
-          "not a ranking decision — we are leaving submission slots empty.</p></div>")
+        A(f'<div class="frame warn"><p>This preview contains {len(shortlist)} records '
+          f"against a cap of {SUBMISSION_CAP}. Use the scientific workflow for official "
+          "validation and guarded submission exports.</p></div>")
 
     # --- the interactive table ---
-    A("<h2>The submission — ranked</h2>")
-    A("<p><code>joint</code> is P(beats trastuzumab on all three axes) — the product, not "
-      "an average. <code>Tier</code> is the predicted tier: <strong>S</strong> beats all "
-      "three, <strong>A</strong> two, <strong>B</strong> one. Teams rank by S count, then "
-      "A, then B.</p>")
+    A("<h2>The submission — ranked (legacy preview only)</h2>")
+    A("<p><code>joint</code> multiplies three heuristic proxies; it is not a success "
+      "probability. <code>Tier</code> is a legacy threshold label, not a validated "
+      "experimental or predicted tier. No design is submitted by this page.</p>")
     A('<p class="kv">Click any row for its dossier. Shift-click (or ⌘/Ctrl-click) two or '
       "more rows to compare them side by side. Click a column heading to sort.</p>")
     A('<div class="controls">')
@@ -792,8 +802,8 @@ def render_html(
       '<span class="kv">Shift-click rows to add or remove.</span></div>')
     A("<footer>")
     A(f"FourWells · schema {_h(config.get('schema_version', '?'))} · "
-      f"{f['generated']} candidates, {f['passed']} eligible, {len(shortlist)} submitted. "
-      "Predictions, not measurements. No network required.")
+      f"{f['generated']} records, {f['passed']} legacy screen passes, {len(shortlist)} preview entries. "
+      "Heuristic predictions, not measurements or calibrated probabilities. No network required.")
     A("</footer>")
     A(f'<script type="application/json" id="data">'
       f"{_payload(records, selected, shortlist)}</script>")
