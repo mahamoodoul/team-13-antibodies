@@ -29,3 +29,6 @@ data/source/
 # redacted on write, but this is still what we sent and what came back, and the
 # repo is public. Local only.
 logs/
+
+# Local scientific runs, raw model output and SQLite job metadata.
+artifacts/

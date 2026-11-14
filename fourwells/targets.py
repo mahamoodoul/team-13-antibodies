@@ -89,6 +89,53 @@ def _read_pdb_sequence(path: Path) -> str:
     return "".join(out)
 
 
+UNIPROT_FASTA = "https://rest.uniprot.org/uniprotkb/{acc}.fasta"
+FETCH_TIMEOUT = 20
+
+
+def fetch_uniprot(accession: str, cache=None) -> str | None:
+    """The target's sequence, from the committed cache or from UniProt once.
+
+    Returns None rather than raising when the sequence cannot be had, because a
+    target with no sequence is a degraded run and a crash here is a dead one —
+    the blind rehearsal exists to prove the pipeline survives exactly this.
+
+    Everything goes through `cache.memo`, so the first `--online` run populates
+    `cache/` and every run after it is offline and byte-identical. That is what
+    makes a blind target reproducible by a judge with no network.
+    """
+    if cache is None:
+        return None
+
+    from .cache import CacheMiss
+
+    def _get() -> str:
+        import urllib.request
+
+        req = urllib.request.Request(
+            UNIPROT_FASTA.format(acc=accession),
+            # A generic client string. Never identify the user or the team to a
+            # third-party service.
+            headers={"User-Agent": "fourwells/1.0 (pipeline)", "Accept": "text/plain"},
+        )
+        with urllib.request.urlopen(req, timeout=FETCH_TIMEOUT) as resp:
+            body = resp.read().decode("utf-8", "replace")
+        lines = [ln.strip() for ln in body.splitlines() if ln and not ln.startswith(">")]
+        seq = "".join(lines).upper()
+        if not seq or set(seq) - AA:
+            raise ValueError(f"UniProt returned no usable sequence for {accession}")
+        return seq
+
+    try:
+        return cache.memo("uniprot", {"accession": accession}, _get)
+    except CacheMiss:
+        # Offline with nothing cached. The caller carries on without a sequence;
+        # the run records it rather than pretending the target resolved.
+        return None
+    except Exception:  # noqa: BLE001 — a fetch failure must not kill the run
+        return None
+
+
 def resolve_target(spec: str | None, cache=None) -> Target:
     spec = (spec or DEFAULT_TARGET).strip()
 
@@ -107,19 +154,23 @@ def resolve_target(spec: str | None, cache=None) -> Target:
         # Known targets have a committed reference file; unknown ones resolve by
         # accession alone and simply carry no epitope information, which the
         # generation stage is expected to handle rather than crash on.
+        acc = spec.upper()
         ref = REFERENCE_DIR / "trastuzumab.json"
-        if spec.upper() == DEFAULT_TARGET and ref.exists():
+        if acc == DEFAULT_TARGET and ref.exists():
             blob = json.loads(ref.read_text())
             her2 = blob.get("her2", {})
             return Target(
-                identifier=spec.upper(),
+                identifier=acc,
                 kind="uniprot",
+                sequence=fetch_uniprot(acc, cache) or "",
                 epitope_residues=[c["residues"] for c in her2.get("contact_regions", [])],
                 epitope_note=her2.get("_caution"),
                 structures=her2.get("complex_structures", []),
                 meta={"domain": her2.get("trastuzumab_epitope_domain")},
             )
-        return Target(identifier=spec.upper(), kind="uniprot")
+        return Target(
+            identifier=acc, kind="uniprot", sequence=fetch_uniprot(acc, cache) or ""
+        )
 
     raise ValueError(
         f"could not resolve target {spec!r} — expected a UniProt accession, "
