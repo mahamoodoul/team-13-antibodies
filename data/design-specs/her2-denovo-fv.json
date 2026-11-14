@@ -1,38 +1,62 @@
 {
   "her2_denovo_fv": {
-    "input": ["her2_fv_1n8z.cif", "framework_adalimumab.cif"],
+    "input": [
+      "her2_CD_clean.cif",
+      "framework_adalimumab.cif"
+    ],
     "contig": "C489-580, /0, D591-607, /0, H1-22, 15-15, H24-37, 10-10, H39-75, 20-22, H77-87, /0, L1-23, 14-14, L25-38, 8-8, L40-71, 12-12, L73-82",
     "conditions": {
       "C_CRD": {
         "true": [
-          {"select": "sel('C/*/*/[N,CA,C,O]') and not has_nan_coord()"},
-          {"select": "sel('D/*/*/[N,CA,C,O]') and not has_nan_coord()"}
+          {
+            "select": "sel('C/*/*/[N,CA,C,O]')"
+          },
+          {
+            "select": "sel('D/*/*/[N,CA,C,O]')"
+          }
         ]
       },
       "C_CRDGRP": {
         "1": [
-          {"select": "sel('H/*/[1-22, 24-37, 39-75, 77-87]/[N,CA,C,O]')"},
-          {"select": "sel('L/*/[1-23, 25-38, 40-71, 73-82]/[N,CA,C,O]')"}
+          {
+            "select": "sel('H/*/[1-22, 24-37, 39-75, 77-87]/[N,CA,C,O]')"
+          },
+          {
+            "select": "sel('L/*/[1-23, 25-38, 40-71, 73-82]/[N,CA,C,O]')"
+          }
         ]
       },
       "C_SEQ": {
         "true": [
-          {"select": "sel('C')"},
-          {"select": "sel('D')"},
-          {"select": "sel('H/*/[1-22, 24-37, 39-75, 77-87]')"},
-          {"select": "sel('L/*/[1-23, 25-38, 40-71, 73-82]')"}
+          {
+            "select": "sel('C')"
+          },
+          {
+            "select": "sel('D')"
+          },
+          {
+            "select": "sel('H/*/[1-22, 24-37, 39-75, 77-87]')"
+          },
+          {
+            "select": "sel('L/*/[1-23, 25-38, 40-71, 73-82]')"
+          }
         ]
       },
       "C_HOT": {
         "true": [
-          {"select": "sel('D/*/593/NZ')"},
-          {"select": "sel('C/*/573/CD1')"},
-          {"select": "sel('D/*/591/CG2')"},
-          {"select": "sel('C/*/572/CD')"}
+          {
+            "select": "sel('D/*/593/NZ')"
+          },
+          {
+            "select": "sel('C/*/573/CD1')"
+          },
+          {
+            "select": "sel('D/*/591/CG2')"
+          },
+          {
+            "select": "sel('C/*/572/CD')"
+          }
         ]
-      },
-      "C_CATH": {
-        "2.60.40": [{"select": "sel('H')"}, {"select": "sel('L')"}]
       }
     }
   }

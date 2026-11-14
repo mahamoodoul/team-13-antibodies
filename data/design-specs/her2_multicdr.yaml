@@ -1,0 +1,51 @@
+# Redesign all three heavy-chain CDRs of trastuzumab against HER2 domain IV.
+#
+# Same input structure and chain layout as the proven Data/12-her2/her2_cdrh3.yaml, which
+# validates. The only change is how much is left out of the conditions: CDRH1 (B26-35),
+# CDRH2 (B50-66) and CDRH3 (B99-108) all appear in no condition, so the model designs the
+# sequence and structure of all three. The framework (B1-25, 36-49, 67-98, 109-120) and the
+# whole light chain (A) stay fixed.
+#
+# CDR boundaries read off the verified parent VH, not assumed:
+#   1-25     EVQLVESGGGLVQPGGSLRLSCAAS   framework
+#   26-35    GFNIKDTYIH                  CDRH1  (cdrs_kabat.cdr_h1)
+#   36-49    WVRQAPGKGLEWVA              framework
+#   50-66    RIYPTNGYTRYADSVKG           CDRH2  (cdrs_kabat.cdr_h2)
+#   67-98    RFTISADTSKNTAYLQMNSLRAEDTAVYYCSR   framework
+#   99-108   WGGDGFYAMD                  CDRH3  (cdr_h3_gate)
+#   109-120  YWGQGTLVTVSS                framework
+#
+# Why this is a distinct hypothesis, not more of the same: the her2-* weights only redesign
+# CDRH3, so every design in optA and optB varies one loop on an otherwise untouched paratope
+# and they share a failure mode. Varying all three heavy CDRs moves contacts trastuzumab makes
+# through CDRH1 and CDRH2 as well, which the portfolio step needs — four variants of one loop
+# all die together if that loop is the problem.
+#
+# Still the OPTIMISATION track: the framework and the entire light chain are retained, so
+# identity to trastuzumab stays far above the 70% de novo ceiling. 37 of 227 positions are
+# designed, about 84% identity.
+#
+# C_HOT keeps the same four HER2 contact atoms as the CDRH3 example, so the designs are
+# conditioned on the trastuzumab epitope rather than drifting elsewhere on domain IV.
+her2_multicdr:
+  input: her2_fv_1n8z.cif
+  conditions:
+    C_CRDGRP:
+      1:
+        - select: "sel('A') and not has_nan_coord()"
+        - select: "sel('B/*/[1-25, 36-49, 67-98, 109-120]') and not has_nan_coord()"
+      2:
+        - select: "sel('C/*/*/[N,CA,C,O]') and not has_nan_coord()"
+        - select: "sel('D/*/*/[N,CA,C,O]') and not has_nan_coord()"
+    C_SEQ:
+      true:
+        - select: "sel('A')"
+        - select: "sel('B/*/[1-25, 36-49, 67-98, 109-120]')"
+        - select: "sel('C')"
+        - select: "sel('D')"
+    C_HOT:
+      true:
+        - select: "sel('D/*/593/NZ')"
+        - select: "sel('C/*/573/CD1')"
+        - select: "sel('D/*/591/CG2')"
+        - select: "sel('C/*/572/CD')"
