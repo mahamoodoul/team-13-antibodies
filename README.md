@@ -8,9 +8,8 @@ Full brief: **[docs/brief.md](docs/brief.md)** — submission rules, data, model
 
 ## Start here
 
-Ask in `#team-13` for the **secrets bundle**: the VM IP, the SSH key, and
-`team-13-keys.env` (both API keys in one file). Nothing secret is in this repo.
-5 minutes, in order:
+Ask in `#team-13` for the **VM IP and the SSH key**. The API keys are already on the
+VM, so that is all you need from us. Nothing secret is in this repo. 5 minutes, in order:
 
 **1 · Get on the GPU box**
 
@@ -37,12 +36,14 @@ Start `claude` from that shell and ask it to fold something. Jobs print an id
 
 **3 · The paid-for extras — JapanFold and AMASS**
 
-Drop `team-13-keys.env` into this folder, then:
+Both keys are already on the VM, in the shared home directory:
 
 ```bash
-set -a && . ./team-13-keys.env && set +a
+set -a && . ~/team-13-keys.env && set +a
 npx skills add japanfold/japanfold      # optional, adds it to Claude Code
 ```
+
+Working from your own laptop instead? Ask in `#team-13` for a copy of that file.
 
 That loads both keys at once: **JapanFold** ($1,100, no expiry — RoseTTAFold3, OpenDDE,
 AF2-IG) and **AMASS** ($100, expires 14 Dec — papers, trials, patents).
