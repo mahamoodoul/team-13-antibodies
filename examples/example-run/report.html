@@ -1,0 +1,166 @@
+<!doctype html><html lang=en><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>FourWells shortlist</title>
+<style>
+:root{--bg:#fbfbfa;--fg:#1a1a18;--mut:#6b6b66;--line:#e2e2dd;--acc:#1f6f5c;--warn:#8a5a00;--card:#fff}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#16171a;--fg:#e8e8e4;--mut:#9a9a94;--line:#2b2c30;--acc:#5fc9a8;--warn:#d9a441;--card:#1d1e22}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.6 ui-sans-serif,-apple-system,Segoe UI,Roboto,sans-serif}
+.wrap{max-width:980px;margin:0 auto;padding:40px 16px 80px}
+h1{font-size:28px;margin:0 0 4px;letter-spacing:-.02em}
+h2{font-size:19px;margin:40px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+h3{font-size:16px;margin:28px 0 8px}
+.sub{color:var(--mut);font-size:13px;margin-bottom:24px}
+table{width:100%;border-collapse:collapse;font-size:13px;margin:12px 0}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+th{color:var(--mut);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+code{font-size:12.5px;background:var(--card);border:1px solid var(--line);border-radius:4px;padding:1px 5px}
+pre{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px;overflow-x:auto;font-size:12px;line-height:1.5}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin:14px 0}
+.up{color:var(--acc);font-weight:600}.dn{color:var(--warn)}.eq{color:var(--mut)}
+.kv{display:grid;grid-template-columns:150px 1fr;gap:4px 14px;font-size:13px;margin:10px 0}
+.kv dt{color:var(--mut)}.kv dd{margin:0}
+.warn{border-left:3px solid var(--warn);background:var(--card);padding:12px 16px;border-radius:0 8px 8px 0;margin:14px 0;font-size:13.5px}
+.kill{border-left:3px solid var(--acc);padding:10px 14px;margin:12px 0;font-size:13.5px;background:var(--card);border-radius:0 8px 8px 0}
+ul{margin:8px 0;padding-left:20px}li{margin:3px 0}
+@media(max-width:640px){.kv{grid-template-columns:1fr}.wrap{padding:24px 16px 60px}}
+</style><div class=wrap>
+<h1>FourWells — shortlist</h1>
+<div class=sub>2026-11-14 12:11 · 4 designs for 4 lab slots · chosen from 261 eligible of 301 generated</div>
+<p>Every axis is scored against trastuzumab at 0.50. S-tier requires beating the baseline on all three at once, so the joint score is a <strong>product</strong>, not a mean — a design excellent on two axes and hopeless on the third is not a candidate.</p>
+<div class=warn><strong>Concentration warning.</strong> All 4 picks come from <code>her2-2026-11-07</code>. They share a generator and a scaffold, so they share a failure mode — if that family is wrong, all of them fail together.</div>
+<h2>The four</h2><table><tr><th>#<th>design<th>track<th>CDRH3<th>subs<th>binding<th>epitope<th>stability<th>joint
+<tr><td>1<td><code>optB-her2_cdrh3_82</code><td>optimisation<td><code>WGTGYFYYYD</code><td>5<td><span class="dn">0.33 ▼</span><td><span class="dn">0.39 ▼</span><td><span class="up">0.55 ▲</span><td>0.073
+<tr><td>2<td><code>optB-her2_cdrh3_4</code><td>optimisation<td><code>WGNFGFYDFT</code><td>5<td><span class="dn">0.32 ▼</span><td><span class="dn">0.39 ▼</span><td><span class="up">0.56 ▲</span><td>0.071
+<tr><td>3<td><code>optB-her2_cdrh3_11</code><td>optimisation<td><code>WGGYGFRMYG</code><td>5<td><span class="dn">0.26 ▼</span><td><span class="dn">0.39 ▼</span><td><span class="up">0.61 ▲</span><td>0.063
+<tr><td>4<td><code>optB-her2_cdrh3_70</code><td>optimisation<td><code>WGGGGIYVYD</code><td>4<td><span class="dn">0.28 ▼</span><td><span class="dn">0.42 ▼</span><td><span class="up">0.55 ▲</span><td>0.062
+</table>
+<h2>Dossiers</h2>
+<div class=card><h3>1. <code>optB-her2_cdrh3_82</code></h3>
+<p><strong>Hypothesis.</strong> Joint P(S-tier) 0.073 = binding 0.33 x epitope 0.39 x stability 0.55, each against a trastuzumab baseline of 0.50 on every axis.</p>
+<dl class=kv>
+<dt>track / format<dd>optimisation / scfv
+<dt>generator<dd><code>rfd4-proteina:her2-2026-11-07</code>
+<dt>CDRH3<dd><code>WGTGYFYYYD</code> (5 substitutions from parent)
+<dt>construct<dd>242 aa, VH-linker-VL
+<dt>joint P(S-tier)<dd>0.073
+</dl>
+<p><strong>Axes</strong>, against the trastuzumab baseline of 0.50.</p><ul>
+<li><strong>binding</strong> <span class="dn">0.33 ▼</span> — 5 of 10 CDRH3 positions changed against an affinity-matured parent; paratope-residue content +20%, aromatics +30%
+<li><strong>epitope</strong> <span class="dn">0.39 ▼</span> — optimisation-track variant retaining 86% of trastuzumab&#x27;s CDR paratope — it binds where trastuzumab binds, so this axis is close to free
+<li><strong>stability</strong> <span class="up">0.55 ▲</span> — 0 framework substitutions, hydrophobic-patch burden +0.00 and pI 8.6 vs 8.1; dominant terms pi_distance +0.15, abs_net_charge +0.04
+</ul>
+<p><strong>Entry gates.</strong> length 242 aa (construct) ≤ 250 · CDRH3 identity 0.50 &lt; 0.70 · 5 substitutions · abguard NOT RUN<br><span class=eq>novelty: pass — ≥2 (capped) substitutions from any of the 525,063 provided · generation export</span></p>
+<p><strong>Why this one.</strong></p><ul>
+<li>Binding: 5 of 10 CDRH3 positions changed against an affinity-matured parent; paratope-residue content +20%, aromatics +30%
+<li>Epitope: optimisation-track variant retaining 86% of trastuzumab&#x27;s CDR paratope — it binds where trastuzumab binds, so this axis is close to free
+<li>Stability: 0 framework substitutions, hydrophobic-patch burden +0.00 and pI 8.6 vs 8.1; dominant terms pi_distance +0.15, abs_net_charge +0.04
+<li>Represents cluster c154 — optimisation track, trastuzumab scaffold, CDRH3 family WGTGYFYYYD (1 design). A hypothesis no other design in the shortlist tests.
+<li>On the list because its strongest axis is stability (0.55) and it clears every entry gate.
+<li>Structure confidence contributed nothing positive to this score: the cutoff is not yet calibrated against the 454 measured non-binders, so high confidence is ignored by policy rather than trusted.
+</ul>
+<div class=kill><strong>Kill criterion.</strong> Fails if SPR K_D comes back above trastuzumab&#x27;s (predicted P 0.33). This is the expected failure: the &lt;70% CDRH3 rule forced us to change an affinity-matured loop, and that is more likely to cost affinity than add it.</div>
+<p><strong>Sequence as ordered.</strong></p><pre>
+EVQLVESGGGLVQPGGSLRLSCAASGFNIKDTYIHWVRQAPGKGLEWVARIYPTNGYTRY
+ADSVKGRFTISADTSKNTAYLQMNSLRAEDTAVYYCSRWGTGYFYYYDYWGQGTLVTVSS
+GGGGSGGGGSGGGGSDIQMTQSPSSLSASVGDRVTITCRASQDVNTAVAWYQQKPGKAPK
+LLIYSASFLYSGVPSRFSGSRSGTDFTLTISSLQPEDFATYYCQQHYTTPPTFGQGTKVE
+IK
+</pre></div>
+<div class=card><h3>2. <code>optB-her2_cdrh3_4</code></h3>
+<p><strong>Hypothesis.</strong> Joint P(S-tier) 0.071 = binding 0.32 x epitope 0.39 x stability 0.56, each against a trastuzumab baseline of 0.50 on every axis.</p>
+<dl class=kv>
+<dt>track / format<dd>optimisation / scfv
+<dt>generator<dd><code>rfd4-proteina:her2-2026-11-07</code>
+<dt>CDRH3<dd><code>WGNFGFYDFT</code> (5 substitutions from parent)
+<dt>construct<dd>242 aa, VH-linker-VL
+<dt>joint P(S-tier)<dd>0.071
+</dl>
+<p><strong>Axes</strong>, against the trastuzumab baseline of 0.50.</p><ul>
+<li><strong>binding</strong> <span class="dn">0.32 ▼</span> — 5 of 10 CDRH3 positions changed against an affinity-matured parent; paratope-residue content +0%, aromatics +20%
+<li><strong>epitope</strong> <span class="dn">0.39 ▼</span> — optimisation-track variant retaining 86% of trastuzumab&#x27;s CDR paratope — it binds where trastuzumab binds, so this axis is close to free
+<li><strong>stability</strong> <span class="up">0.56 ▲</span> — 0 framework substitutions, hydrophobic-patch burden +0.00 and pI 8.7 vs 8.1; dominant terms pi_distance +0.17, abs_net_charge +0.04
+</ul>
+<p><strong>Entry gates.</strong> length 242 aa (construct) ≤ 250 · CDRH3 identity 0.50 &lt; 0.70 · 5 substitutions · abguard NOT RUN<br><span class=eq>novelty: pass — ≥2 (capped) substitutions from any of the 525,063 provided · generation export</span></p>
+<p><strong>Why this one.</strong></p><ul>
+<li>Binding: 5 of 10 CDRH3 positions changed against an affinity-matured parent; paratope-residue content +0%, aromatics +20%
+<li>Epitope: optimisation-track variant retaining 86% of trastuzumab&#x27;s CDR paratope — it binds where trastuzumab binds, so this axis is close to free
+<li>Stability: 0 framework substitutions, hydrophobic-patch burden +0.00 and pI 8.7 vs 8.1; dominant terms pi_distance +0.17, abs_net_charge +0.04
+<li>Represents cluster c119 — optimisation track, trastuzumab scaffold, CDRH3 family WGNFGFYDFT (1 design). A hypothesis no other design in the shortlist tests.
+<li>On the list because its strongest axis is stability (0.56) and it clears every entry gate.
+<li>Structure confidence contributed nothing positive to this score: the cutoff is not yet calibrated against the 454 measured non-binders, so high confidence is ignored by policy rather than trusted.
+</ul>
+<div class=kill><strong>Kill criterion.</strong> Fails if SPR K_D comes back above trastuzumab&#x27;s (predicted P 0.32). This is the expected failure: the &lt;70% CDRH3 rule forced us to change an affinity-matured loop, and that is more likely to cost affinity than add it.</div>
+<p><strong>Sequence as ordered.</strong></p><pre>
+EVQLVESGGGLVQPGGSLRLSCAASGFNIKDTYIHWVRQAPGKGLEWVARIYPTNGYTRY
+ADSVKGRFTISADTSKNTAYLQMNSLRAEDTAVYYCSRWGNFGFYDFTYWGQGTLVTVSS
+GGGGSGGGGSGGGGSDIQMTQSPSSLSASVGDRVTITCRASQDVNTAVAWYQQKPGKAPK
+LLIYSASFLYSGVPSRFSGSRSGTDFTLTISSLQPEDFATYYCQQHYTTPPTFGQGTKVE
+IK
+</pre></div>
+<div class=card><h3>3. <code>optB-her2_cdrh3_11</code></h3>
+<p><strong>Hypothesis.</strong> Joint P(S-tier) 0.063 = binding 0.26 x epitope 0.39 x stability 0.61, each against a trastuzumab baseline of 0.50 on every axis.</p>
+<dl class=kv>
+<dt>track / format<dd>optimisation / scfv
+<dt>generator<dd><code>rfd4-proteina:her2-2026-11-07</code>
+<dt>CDRH3<dd><code>WGGYGFRMYG</code> (5 substitutions from parent)
+<dt>construct<dd>242 aa, VH-linker-VL
+<dt>joint P(S-tier)<dd>0.063
+</dl>
+<p><strong>Axes</strong>, against the trastuzumab baseline of 0.50.</p><ul>
+<li><strong>binding</strong> <span class="dn">0.26 ▼</span> — 5 of 10 CDRH3 positions changed against an affinity-matured parent; paratope-residue content +10%, aromatics +10%
+<li><strong>epitope</strong> <span class="dn">0.39 ▼</span> — optimisation-track variant retaining 86% of trastuzumab&#x27;s CDR paratope — it binds where trastuzumab binds, so this axis is close to free
+<li><strong>stability</strong> <span class="up">0.61 ▲</span> — 0 framework substitutions, hydrophobic-patch burden +0.00 and pI 9.3 vs 8.1; dominant terms pi_distance +0.35, abs_net_charge +0.14
+</ul>
+<p><strong>Entry gates.</strong> length 242 aa (construct) ≤ 250 · CDRH3 identity 0.50 &lt; 0.70 · 5 substitutions · abguard NOT RUN<br><span class=eq>novelty: pass — ≥2 (capped) substitutions from any of the 525,063 provided · generation export</span></p>
+<p><strong>Why this one.</strong></p><ul>
+<li>Binding: 5 of 10 CDRH3 positions changed against an affinity-matured parent; paratope-residue content +10%, aromatics +10%
+<li>Epitope: optimisation-track variant retaining 86% of trastuzumab&#x27;s CDR paratope — it binds where trastuzumab binds, so this axis is close to free
+<li>Stability: 0 framework substitutions, hydrophobic-patch burden +0.00 and pI 9.3 vs 8.1; dominant terms pi_distance +0.35, abs_net_charge +0.14
+<li>Represents cluster c98 — optimisation track, trastuzumab scaffold, CDRH3 family WGGYGFRMYG (1 design). A hypothesis no other design in the shortlist tests.
+<li>On the list because its strongest axis is stability (0.61) and it clears every entry gate.
+<li>Structure confidence contributed nothing positive to this score: the cutoff is not yet calibrated against the 454 measured non-binders, so high confidence is ignored by policy rather than trusted.
+</ul>
+<div class=kill><strong>Kill criterion.</strong> Fails if SPR K_D comes back above trastuzumab&#x27;s (predicted P 0.26). This is the expected failure: the &lt;70% CDRH3 rule forced us to change an affinity-matured loop, and that is more likely to cost affinity than add it.</div>
+<p><strong>Sequence as ordered.</strong></p><pre>
+EVQLVESGGGLVQPGGSLRLSCAASGFNIKDTYIHWVRQAPGKGLEWVARIYPTNGYTRY
+ADSVKGRFTISADTSKNTAYLQMNSLRAEDTAVYYCSRWGGYGFRMYGYWGQGTLVTVSS
+GGGGSGGGGSGGGGSDIQMTQSPSSLSASVGDRVTITCRASQDVNTAVAWYQQKPGKAPK
+LLIYSASFLYSGVPSRFSGSRSGTDFTLTISSLQPEDFATYYCQQHYTTPPTFGQGTKVE
+IK
+</pre></div>
+<div class=card><h3>4. <code>optB-her2_cdrh3_70</code></h3>
+<p><strong>Hypothesis.</strong> Joint P(S-tier) 0.062 = binding 0.28 x epitope 0.42 x stability 0.55, each against a trastuzumab baseline of 0.50 on every axis.</p>
+<dl class=kv>
+<dt>track / format<dd>optimisation / scfv
+<dt>generator<dd><code>rfd4-proteina:her2-2026-11-07</code>
+<dt>CDRH3<dd><code>WGGGGIYVYD</code> (4 substitutions from parent)
+<dt>construct<dd>242 aa, VH-linker-VL
+<dt>joint P(S-tier)<dd>0.062
+</dl>
+<p><strong>Axes</strong>, against the trastuzumab baseline of 0.50.</p><ul>
+<li><strong>binding</strong> <span class="dn">0.28 ▼</span> — 4 of 10 CDRH3 positions changed against an affinity-matured parent; paratope-residue content +10%, aromatics +0%
+<li><strong>epitope</strong> <span class="dn">0.42 ▼</span> — optimisation-track variant retaining 89% of trastuzumab&#x27;s CDR paratope — it binds where trastuzumab binds, so this axis is close to free
+<li><strong>stability</strong> <span class="up">0.55 ▲</span> — 0 framework substitutions, hydrophobic-patch burden +0.00 and pI 8.7 vs 8.1; dominant terms pi_distance +0.16, abs_net_charge +0.04
+</ul>
+<p><strong>Entry gates.</strong> length 242 aa (construct) ≤ 250 · CDRH3 identity 0.60 &lt; 0.70 · 4 substitutions · abguard NOT RUN<br><span class=eq>novelty: pass — ≥2 (capped) substitutions from any of the 525,063 provided · generation export</span></p>
+<p><strong>Why this one.</strong></p><ul>
+<li>Binding: 4 of 10 CDRH3 positions changed against an affinity-matured parent; paratope-residue content +10%, aromatics +0%
+<li>Epitope: optimisation-track variant retaining 89% of trastuzumab&#x27;s CDR paratope — it binds where trastuzumab binds, so this axis is close to free
+<li>Stability: 0 framework substitutions, hydrophobic-patch burden +0.00 and pI 8.7 vs 8.1; dominant terms pi_distance +0.16, abs_net_charge +0.04
+<li>Represents cluster c144 — optimisation track, trastuzumab scaffold, CDRH3 family WGGGGIYVYD (1 design). A hypothesis no other design in the shortlist tests.
+<li>On the list because its strongest axis is stability (0.55) and it clears every entry gate.
+<li>Structure confidence contributed nothing positive to this score: the cutoff is not yet calibrated against the 454 measured non-binders, so high confidence is ignored by policy rather than trusted.
+</ul>
+<div class=kill><strong>Kill criterion.</strong> Fails if SPR K_D comes back above trastuzumab&#x27;s (predicted P 0.28). This is the expected failure: the &lt;70% CDRH3 rule forced us to change an affinity-matured loop, and that is more likely to cost affinity than add it.</div>
+<p><strong>Sequence as ordered.</strong></p><pre>
+EVQLVESGGGLVQPGGSLRLSCAASGFNIKDTYIHWVRQAPGKGLEWVARIYPTNGYTRY
+ADSVKGRFTISADTSKNTAYLQMNSLRAEDTAVYYCSRWGGGGIYVYDYWGQGTLVTVSS
+GGGGSGGGGSGGGGSDIQMTQSPSSLSASVGDRVTITCRASQDVNTAVAWYQQKPGKAPK
+LLIYSASFLYSGVPSRFSGSRSGTDFTLTISSLQPEDFATYYCQQHYTTPPTFGQGTKVE
+IK
+</pre></div>
+<h2>What would change our mind</h2>
+<p>The ranker is a prediction, and the parts that are not yet evidence are marked as such rather than dressed up. Where an axis reads —, no predictor has run; where structure confidence contributed nothing, it was withheld by policy because the model's baseline left no headroom, not because the design scored badly.</p>
+</div></html>
