@@ -1,10 +1,13 @@
-.PHONY: demo schema test unit clean
+.PHONY: demo schema test unit report clean
 
-unit:   ## Ranking-engine tests (gates, three axes, portfolio). Offline, ~0.1s
+unit:   ## All tests: gates, three axes, portfolio, report. Offline, ~0.3s
 	python3 -m unittest discover -s tests -t . -v
 
 demo:   ## Run the bundled example end to end, no arguments, offline
 	python3 -m fourwells.cli run --out results/ --seed 0
+
+report: ## Re-render the newest run's report without re-running any model
+	python3 -m fourwells.cli report "$$(ls -td results/*/ | head -1)"
 
 schema: ## Print the frozen design-record contract
 	python3 -m fourwells.cli schema

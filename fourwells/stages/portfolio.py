@@ -286,8 +286,9 @@ def _write_dossier(rec: DesignRecord, cluster_obj: Cluster | None, rank: int, bu
     if conf and not conf.get("calibrated", True):
         lines.append(
             "Structure confidence contributed nothing positive to this score: the cutoff "
-            "is not yet calibrated against the 454 measured non-binders, so high "
-            "confidence is ignored by policy rather than trusted."
+            "is not calibrated against measured non-binders, so high confidence is "
+            "ignored by policy rather than trusted. The provided archive's non-binding "
+            "pairs are shuffled and computational, not SPR measurements."
         )
 
     rec.rationale = lines

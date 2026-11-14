@@ -1,10 +1,21 @@
 """The structure-confidence cutoff — OWNER: Rizve. Calibrated, not remembered.
 
-We were handed 454 VHH-antigen pairs **measured not to bind**, and 21 of them
-score AF3 ipTM >= 0.7. Those 21 rows are the most valuable thing in the
-challenge bundle: direct, measured proof that high structure confidence does
-not mean binding. A team that filters on ipTM >= 0.7 would have ordered all 21
-of them.
+The brief promises 454 VHH-antigen pairs "measured not to bind", 21 of them at
+AF3 ipTM >= 0.7, and that would be the most valuable thing in the bundle:
+direct, measured proof that high structure confidence does not mean binding.
+
+Those measurements are not in the archive. `proof/audit_datasets.py` found no
+SPR column in it: what ships is three 91x91 cross-pairing matrices whose
+off-diagonal pairs are SHUFFLED — a computational model of non-binding, not an
+experiment. 246 of 8,137 shuffled pairs clear AF3 ipTM 0.7, and under Boltz-2
+7,723 of 8,190 do. That is still the right curve to calibrate against, and it
+still says a team filtering on ipTM >= 0.7 would order non-binders. It is just
+not a measurement, so the `basis` argument below records which kind it is and
+the scorer treats the two differently.
+
+The one genuinely measured counterexample we do hold is stronger than any
+cutoff: 8w90_a binds CD4 at 7.41 nM with AF3 ipTM 0.12. One confirmed binder
+that a confidence filter throws away.
 
 So this module exists to make sure we never set that threshold from a round
 number someone remembered. Two states, and the scorer behaves differently in
@@ -93,8 +104,8 @@ class ConfidencePolicy:
                 )
                 note = (
                     f"confidence {conf:.2f} ignored — {why}, and high confidence "
-                    "is not allowed to raise a binding score (21 of 454 measured "
-                    "non-binders clear ipTM 0.7)"
+                    "is not allowed to raise a binding score (246 of 8,137 shuffled "
+                    "non-binding pairs clear AF3 ipTM 0.7)"
                 )
             else:
                 note = (
@@ -270,7 +281,7 @@ def main(argv: list[str] | None = None) -> int:
         prog="fourwells.calibrate",
         description="Set the structure-confidence cutoff from measured non-binders",
     )
-    ap.add_argument("negatives", type=Path, help="CSV of measured non-binders (the 454)")
+    ap.add_argument("negatives", type=Path, help="CSV of non-binding pairs; see --basis for whether they are measured")
     ap.add_argument("--positives", type=Path, help="CSV of measured binders, for the sensitivity cost")
     ap.add_argument("--conf-column", help="override the confidence column name")
     ap.add_argument("--target-specificity", type=float, default=0.95)
@@ -307,7 +318,7 @@ def main(argv: list[str] | None = None) -> int:
             "Calibrated against computational decoys, not measured non-binders. "
             "Separating shuffled pairs is an easier problem than the one we face, so "
             "this cutoff may still LOWER a binding score and may not raise one. "
-            "Point this at the 454 measured negatives to unlock that."
+            "Point this at genuinely measured negatives to unlock that."
         )
     print(json.dumps(result, indent=2))
     print("\n" + result["headline"])

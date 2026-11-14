@@ -70,6 +70,24 @@ def _print_report(result, target, ref, paths, cache) -> None:
     print(f"    {DIM}{cache.stats()}{R}\n")
 
 
+def _command_line(args) -> str:
+    """The exact command that reproduces this run, for the report.
+
+    Rebuilt from the parsed arguments rather than copied from sys.argv, so it
+    names the defaults a reader would otherwise have to guess at.
+    """
+    parts = ["fourwells", "run", f"--seed {args.seed}", f"--budget {args.budget}",
+             f"--candidates {args.candidates}"]
+    if args.target:
+        parts.append(f"--target {args.target}")
+    if args.reference:
+        parts.append(f"--reference {args.reference}")
+    if args.online:
+        parts.append("--online")
+    parts.append(f"--out {args.out}")
+    return " ".join(parts)
+
+
 def cmd_run(args) -> int:
     random.seed(args.seed)
     try:
@@ -89,13 +107,34 @@ def cmd_run(args) -> int:
         cache=cache,
         timebox=args.timebox,
     )
-    paths = write_outputs(result, args.out)
+    config = {
+        "target": getattr(target, "name", None) or str(args.target or "HER2 P04626"),
+        "reference": getattr(ref, "name", None) or str(args.reference or "trastuzumab"),
+        "budget": args.budget,
+        "candidates": args.candidates,
+        "seed": args.seed,
+        "online": bool(args.online),
+        "command": _command_line(args),
+    }
+    paths = write_outputs(result, args.out, config=config, run_id=args.run_id,
+                          report=not args.no_report)
     _print_report(result, target, ref, paths, cache)
 
     if args.strict and result.warnings:
         print(f"{RED}strict: {len(result.warnings)} warning(s){R}", file=sys.stderr)
         return 1
     return 0
+
+
+def cmd_report(args) -> int:
+    """Re-render a run's report without re-running any model.
+
+    This is how the pitch gets iterated at 17:00: the records are already on
+    disk, so wording changes cost nothing and risk nothing.
+    """
+    from .report import main as report_main
+
+    return report_main([args.rundir])
 
 
 def cmd_schema(args) -> int:
@@ -125,10 +164,18 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--timebox", type=float, default=300.0, help="per-stage warn threshold, seconds")
     r.add_argument("--online", action="store_true", help="allow network/GPU calls (default: offline)")
     r.add_argument("--strict", action="store_true", help="exit non-zero if any warning")
+    r.add_argument("--run-id", default=None,
+                   help="pin the run directory name (default: timestamp + input hash)")
+    r.add_argument("--no-report", action="store_true",
+                   help="skip report.md / report.html, write the JSONL only")
     r.set_defaults(func=cmd_run)
 
     s = sub.add_parser("schema", help="print the frozen design-record contract")
     s.set_defaults(func=cmd_schema)
+
+    rp = sub.add_parser("report", help="re-render the report from an existing run")
+    rp.add_argument("rundir", help="a run directory holding designs.jsonl")
+    rp.set_defaults(func=cmd_report)
 
     return p
 

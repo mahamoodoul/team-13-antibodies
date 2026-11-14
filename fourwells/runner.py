@@ -7,12 +7,16 @@ stub, it says so on every line of the summary.
 
 from __future__ import annotations
 
+import hashlib
+import json
+import subprocess
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from .cache import Cache
-from .schema import AXES, DesignRecord, validate, write_jsonl
+from .schema import AXES, SCHEMA_VERSION, DesignRecord, validate, write_jsonl
 from .stages import gates as gates_stage
 from .stages import generate as generate_stage
 from .stages import portfolio as portfolio_stage
@@ -104,13 +108,105 @@ def run_pipeline(
     return result
 
 
-def write_outputs(result: RunResult, out_dir: Path) -> dict[str, Path]:
-    out_dir = Path(out_dir)
+def git_sha() -> str:
+    """The commit this run came from. 'unknown' if we are not in a git checkout.
+
+    A ranked list nobody can tie back to a revision is not reproducible, and the
+    20% execution score is exactly that claim.
+    """
+    try:
+        out = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=Path(__file__).resolve().parent,
+            capture_output=True, text=True, timeout=5,
+        )
+        sha = out.stdout.strip()
+        if out.returncode == 0 and sha:
+            dirty = subprocess.run(
+                ["git", "status", "--porcelain"],
+                cwd=Path(__file__).resolve().parent,
+                capture_output=True, text=True, timeout=5,
+            )
+            return sha + ("-dirty" if dirty.stdout.strip() else "")
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return "unknown"
+
+
+def make_run_id(config: dict[str, Any]) -> str:
+    """Timestamp plus a short hash of the inputs.
+
+    The timestamp keeps successive runs from overwriting each other; the hash
+    makes it obvious at a glance when two runs had identical inputs, which is
+    how we spot an accidental re-run during the demo.
+    """
+    basis = json.dumps(
+        {k: config.get(k) for k in ("target", "reference", "budget", "candidates", "seed")},
+        sort_keys=True,
+    )
+    digest = hashlib.sha256(basis.encode()).hexdigest()[:8]
+    return f"{time.strftime('%Y%m%d-%H%M%S')}-{digest}"
+
+
+def write_outputs(
+    result: RunResult,
+    out_dir: Path,
+    config: dict[str, Any] | None = None,
+    run_id: str | None = None,
+    report: bool = True,
+) -> dict[str, Path]:
+    """Write one run into its own directory. Never overwrites a previous run.
+
+    Pass `run_id` to pin the directory name — the tests rely on that, and so does
+    anyone comparing two runs byte for byte.
+    """
+    config = dict(config or {})
+    config.setdefault("schema_version", SCHEMA_VERSION)
+    config.setdefault("git_sha", git_sha())
+    config["warnings"] = list(result.warnings)
+    config["stages"] = [
+        {"name": s.name, "seconds": round(s.seconds, 3), "n_in": s.n_in, "n_out": s.n_out}
+        for s in result.stages
+    ]
+    config["run_id"] = run_id or config.get("run_id") or make_run_id(config)
+
+    out_dir = Path(out_dir) / config["run_id"]
     out_dir.mkdir(parents=True, exist_ok=True)
+
     paths = {
+        "config": out_dir / "config.json",
         "all": out_dir / "designs.jsonl",
         "selected": out_dir / "selected.jsonl",
     }
+    paths["config"].write_text(json.dumps(config, indent=2, sort_keys=True) + "\n")
     write_jsonl(result.records, paths["all"])
     write_jsonl(result.selected, paths["selected"])
+
+    if report:
+        # Imported here so a failure in the renderer can never stop a run from
+        # saving its records. The JSONL is the evidence; the report is a view of it.
+        from . import report as report_mod
+
+        try:
+            paths["report_md"] = out_dir / "report.md"
+            paths["report_md"].write_text(
+                report_mod.render_markdown(
+                    result.records, result.selected, config, result.warnings
+                )
+            )
+            paths["report_html"] = out_dir / "report.html"
+            paths["report_html"].write_text(
+                report_mod.render_html(
+                    result.records, result.selected, config, result.warnings
+                )
+            )
+        except Exception as exc:  # noqa: BLE001 — a bad view must not lose the data
+            result.warnings.append(
+                f"report rendering failed ({exc.__class__.__name__}: {exc}); "
+                f"records are still in {paths['all']}. Re-render with "
+                f"`python3 -m fourwells.report {out_dir}`"
+            )
+            paths.pop("report_md", None)
+            paths.pop("report_html", None)
+
     return paths

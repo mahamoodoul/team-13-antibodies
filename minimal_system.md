@@ -71,29 +71,30 @@ No database. One directory per run, never overwritten:
 
 ```
 results/<run-id>/
-  config.json       target, reference, seed, budget, model versions, git SHA   TODO
-  designs.jsonl     every candidate, every stage's output, failures included   done
-  selected.jsonl    the final ranked ≤20, in order                            done
-  report.html       self-contained, offline, the thing we show                 TODO
-  report.md         the same content, for the repo                             TODO
-  cache/            content-addressed by input hash                       cache.py
+  config.json       target, reference, seed, budget, git SHA, stage timings, warnings
+  designs.jsonl     every candidate, every stage's output, failures included
+  selected.jsonl    the designs taking the guaranteed lab slots
+  report.md         the ranked submission and the dossiers, for the repo
+  report.html       the same, self-contained and offline — the thing we show
 ```
 
-[`write_outputs`](fourwells/runner.py#L107) currently writes the two JSONL files flat
-into `--out`. The remaining gaps are small and all in the spine's lane: a run-id
-subdirectory so successive runs stop overwriting each other, `config.json` for
-reproducibility, and the report renderer's plumbing (the proof lane owns its *content*,
-not where it is written).
-
-Everything upstream of the report is now real — see section 7.
+`<run-id>` is a timestamp plus an 8-char hash of the inputs, so successive runs never
+overwrite each other and two runs with identical inputs are obvious at a glance.
+`--run-id` pins it when you want to diff two runs byte for byte. The cache is
+content-addressed and shared across runs, so it sits outside the run directory.
 
 Rejected candidates stay in `designs.jsonl` with their failure reasons. A pipeline that
 silently drops its failures cannot be audited, and "what did you throw away?" is a
 question a judge will actually ask.
 
-Re-running with the same seed and inputs must reproduce `selected.jsonl` byte for byte.
-That is the 20% execution score, and it is cheap to hold if the cache is keyed on
-content rather than on time.
+The report is a *view* of the JSONL, never the record of truth: if rendering raises, the
+run still saves its records and warns, and `fourwells report <rundir>` re-renders from
+disk without touching a model. That matters at 17:00, when wording changes should cost
+nothing and risk nothing.
+
+Re-running with the same seed and inputs reproduces `designs.jsonl`, `selected.jsonl`
+and `report.md` byte for byte — verified, not asserted. That is the 20% execution score,
+and it holds because the cache is keyed on content rather than on time.
 
 ## 5. The ranking, which is the actual product
 
@@ -204,25 +205,37 @@ non-binders". Those pairs are **shuffled and computational**, not SPR measuremen
 exactly the predicted-versus-measured confusion this system exists to avoid, and it is
 in our own output. Rizve's files, so flagged rather than edited here.
 
-**Phase 4 — portfolio and report. ◐** [`stages/portfolio.py`](fourwells/stages/portfolio.py)
-implements the joint objective; the report renderer and the section 4 output gaps are what
-is left. This is the 40%, so it gets whatever time remains, and time is taken from
-elsewhere if needed.
+**Phase 4 — portfolio and report. ✅** [`stages/portfolio.py`](fourwells/stages/portfolio.py)
+implements the joint objective. [`report.py`](fourwells/report.py) renders `report.md` and
+a self-contained `report.html` — no CDN, no web font, no JavaScript, verified to hold zero
+external references so it opens from a `file://` URL on a dead network.
+[`runner.py`](fourwells/runner.py) writes the run directory and `config.json` with the git
+SHA. `make report` re-renders the newest run.
+
+One thing the renderer fixed rather than inherited: the portfolio stage marks the four
+designs that take the *guaranteed* slots, but the organisers accept a ranked list of up to
+**20**, and placing on the day buys 16/12/8 more slots plus a judge's nomination. A list
+that stopped at four would discard every slot we might win, so
+[`build_shortlist`](fourwells/report.py) keeps the four at the top in the portfolio's
+order and fills the rest by joint score.
 
 ## 8. Done
 
-Verified by running it, not by reading the code:
+Verified by running it, not by reading the code. `make demo && make unit` checks all of
+the ticked boxes; 70 tests, offline, under a second.
 
-- [x] One documented command runs end to end, offline — `fourwells run --out DIR`
-- [x] Same seed, same inputs → identical `selected.jsonl` *and* `designs.jsonl`
-- [x] Three axes reported separately, each with a readable reason
+- [x] One documented command runs end to end, offline — `make demo`
+- [x] Same seed, same inputs → identical `designs.jsonl`, `selected.jsonl`, `report.md`
+- [x] Every design traces to its source, config and git SHA — `config.json`
+- [x] Three axes reported separately, each with a readable reason and its provenance
+- [x] Predicted and measured values are never shown without a label, and nothing in the
+      report calls a computational decoy "measured"
 - [x] Stub-sourced records are flagged as a warning in the run output, not hidden
-- [ ] Every design traces to its source, config and git SHA — needs `config.json`
-- [ ] `abguard` verdicts recorded with exact failure reasons; failures retained
-- [ ] Predicted and measured values never shown together without a label — **currently
-      violated**: the rationale strings call the shuffled pairs "measured"
-- [ ] Ranked ≤20 exported, with four flagged as the lab slots and a reason for each
-- [ ] One case the ranker gets **wrong**, named, with the reason
+- [x] Rejections retained with their exact failure reasons, tallied by rule in the report
+- [x] Ranked ≤20 exported, with the lab slots flagged and a reason for each
+- [x] Report opens offline — zero external references, no JavaScript
+- [x] Cases the ranker gets **wrong**, named with the reason, above the reproduce section
+- [ ] `abguard` verdicts recorded — the gate calls it, needs a run on the VM to confirm
 
 That last box is not humility, it is scoring. A team that names its own failure mode
 reads as credible; one showing only wins reads as overfitted. We have a null result on
