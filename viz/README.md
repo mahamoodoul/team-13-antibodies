@@ -16,8 +16,10 @@ over `file://`, so the data and any structure file will not load. The page says 
 The scatter is **CDRH3 substitutions from trastuzumab** against **joint P(S-tier)**, which is
 `P(binding) × P(epitope) × P(stability)`. Two things are worth reading off it:
 
-- The dashed line at 4 substitutions is the `<70%` CDRH3 identity floor. Everything to its left
-  is unsubmittable however well it scores, which is why the ranker never picks there.
+- Two dashed lines mark the near-parent limits, both computed from the pipeline rather than
+  typed in. The red line is the `<70%` CDRH3 identity floor. The amber line is the fewest
+  substitutions any design clearing the strict distance-3 rule reaches in this pool. Left of a
+  line, a design cannot pass that rule however well it scores.
 - Rejected designs are plotted too, faintly. The pool thins out sharply to the right: that is
   the affinity cliff in `docs/binding-axis-validation.md`, visible as geometry.
 

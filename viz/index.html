@@ -272,12 +272,18 @@
       "font-size": "11", opacity: ".65", transform: "rotate(-90 12 " + (M.t + ih / 2) + ")"},
       ["joint P(S-tier) = bind x epi x stab"]));
 
-    // the <70% identity floor: designs left of it cannot be submitted
-    var floorAt = 4;
-    svg.appendChild(svgEl("line", {x1: x(floorAt) - 0.5, x2: x(floorAt) - 0.5, y1: M.t, y2: M.t + ih,
-      stroke: "var(--bad)", "stroke-width": 1, "stroke-dasharray": "3 3", opacity: ".55"}));
-    svg.appendChild(svgEl("text", {x: x(floorAt) + 5, y: M.t + 11, fill: "var(--bad)", "font-size": "10",
-      opacity: ".85"}, ["<70% identity floor"]));
+    // Two near-parent lines, both computed in viz/build_data.py. Left of a line,
+    // a design cannot pass that rule however well it scores.
+    [
+      {at: DATA.meta.floor_identity, label: "<70% identity floor", color: "var(--bad)", dash: "3 3"},
+      {at: DATA.meta.floor_strict, label: "strict band: 3+ from all 525k", color: "var(--warn)", dash: "1 3"}
+    ].forEach(function (f, k) {
+      if (f.at === null || f.at === undefined) return;
+      svg.appendChild(svgEl("line", {x1: x(f.at) - 0.5, x2: x(f.at) - 0.5, y1: M.t, y2: M.t + ih,
+        stroke: f.color, "stroke-width": 1, "stroke-dasharray": f.dash, opacity: ".6"}));
+      svg.appendChild(svgEl("text", {x: x(f.at) + 5, y: M.t + 11 + k * 12, fill: f.color,
+        "font-size": "10", opacity: ".9"}, [f.label]));
+    });
 
     // jitter is deterministic per design so the picture is stable run to run
     function jit(id) { var h = 0; for (var k = 0; k < id.length; k++) { h = (h * 31 + id.charCodeAt(k)) % 1000; } return (h / 1000 - 0.5) * 13; }
