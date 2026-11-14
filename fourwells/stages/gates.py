@@ -135,6 +135,26 @@ def _is_capped(nov: dict) -> bool:
     )
 
 
+# The smallest distance from a provided sequence we will SUBMIT, as opposed to
+# the smallest the filter appears to accept. These differ at exactly 2, and the
+# gap is the whole shortlist.
+#
+# Ruhit's measured behaviour of the real filter: rejects only at <= 1. The
+# wording -- "more than 2 point mutations from any provided antibody" -- plainly
+# reads as 3. No mentor settled it in three hours. Ansarul and Rizve both called
+# it strict at 12:43 on the asymmetry: the lenient reading gains ~2% of joint
+# score, and if it is wrong it costs the entire submission, after the pitch.
+#
+# Set to 2 and re-run to go back; a distance-2 design keeps its exact measured
+# distance in the record either way, so nothing needs regenerating.
+#
+# NOTE FOR RIZVE, whose file this is: this is the two-line change you described
+# to Ansarul as "it just needs to become a hard filter rather than a
+# preference". Revert if you want it done differently -- the measurement and
+# the decision are not mine, only the wiring.
+SUBMITTABLE_DISTANCE = 3
+
+
 def novelty_from_universe(
     cdrh3: str, universe: set[str] | None = None, max_distance: int = 3
 ) -> dict:
@@ -203,15 +223,19 @@ def novelty_from_universe(
                         if aj == oj:
                             continue
                         if first[:j] + aj + first[j + 1 :] in universe:
+                            lenient = 2 >= SUBMITTABLE_DISTANCE
                             return {
                                 **base,
-                                "verdict": "pass",
+                                "verdict": "pass" if lenient else "fail",
                                 "min_substitutions_from_any_provided": 2,
-                                "borderline": True,
+                                "borderline": lenient,
                                 "reason": (
                                     "exactly 2 substitutions from a provided sequence — "
-                                    "passes the filter as measured, but the project "
-                                    "wording reads as 'more than 2'. Unsettled"
+                                    "passes the filter as Ruhit measured it, but the "
+                                    "project wording reads as 'more than 2'. We submit "
+                                    f"only at >= {SUBMITTABLE_DISTANCE}: the lenient "
+                                    "reading is worth ~2% of joint score and, if wrong, "
+                                    "the whole submission"
                                 ),
                             }
 
@@ -384,6 +408,36 @@ def track_checks(
                 ),
             }
     if carried:
+        # Enforce the submission threshold on whatever distance we ended up
+        # with, carried or recomputed. This has to live here rather than in
+        # either source: the carried export verdict wins above, and it was
+        # computed against the export's own threshold of 2, so a distance-2
+        # design arrived already stamped `passes_novelty: True` and never met
+        # SUBMITTABLE_DISTANCE at all. That is why making the recompute strict
+        # changed nothing -- the recompute only runs on capped records.
+        #
+        # A capped distance equals its cap and means "at least that", so the
+        # one comparison is correct for both: an exact 2 fails, and a 3 capped
+        # at 3 passes because the true distance can only be larger.
+        _d = carried.get("min_substitutions_from_any_provided")
+        if (
+            carried.get("verdict") == "pass"
+            and isinstance(_d, int)
+            and _d < SUBMITTABLE_DISTANCE
+        ):
+            carried = {
+                **carried,
+                "verdict": "fail",
+                "borderline": False,
+                "submittable_distance": SUBMITTABLE_DISTANCE,
+                "reason": (
+                    f"{_d} substitutions from the nearest provided sequence. It "
+                    "passes the filter as Ruhit measured it (rejects only at <= 1), "
+                    "but the project wording reads as 'more than 2' and we submit "
+                    f"only at >= {SUBMITTABLE_DISTANCE} — the lenient reading is "
+                    "worth ~2% of joint score and, if wrong, the whole submission"
+                ),
+            }
         checks["novelty"] = carried
         verdict = carried.get("verdict")
         if verdict == "fail":

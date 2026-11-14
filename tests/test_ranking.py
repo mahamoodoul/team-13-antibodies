@@ -485,32 +485,45 @@ class TestIngest(unittest.TestCase):
         passes, _ = novelty_verdict(self._row(4)["novelty"])
         self.assertTrue(passes)
 
-    def test_distance_two_passes_but_is_flagged_borderline(self):
-        """Settled by measurement. The project wording reads as "more than 2",
-        but Ruhit ran the real filter over 201 designs and it rejected only
-        designs within ONE substitution (22) or verbatim (3) — nothing at
-        distance 2. So 2 passes, and rejecting it was discarding submittable
-        designs for nothing.
+    def test_distance_two_is_rejected_under_the_strict_reading(self):
+        """Switched 12:43 by team decision, and it is a judgment call not a
+        measurement. The real filter rejected nothing at distance 2 over 201
+        designs, so the lenient reading has evidence behind it. The wording --
+        "more than 2 point mutations from any provided antibody" -- plainly
+        reads as 3, and nobody could get a mentor to settle it.
 
-        It is still flagged, because the wording and the observed behaviour do
-        not agree and no mentor has settled it. The portfolio step breaks ties
-        against a borderline design rather than refusing it.
+        The asymmetry decided it. Being wrong about the lenient reading does
+        not cost the ~2% of joint score Rizve priced; it costs the whole
+        submission, after the pitch. 3 satisfies both readings.
         """
-        from fourwells.ingest import novelty_verdict, to_record
+        from fourwells.ingest import novelty_verdict, MIN_DISTANCE_FROM_PROVIDED
 
-        passes, reason = novelty_verdict(self._row(2, capped=True)["novelty"])
+        passes, reason = novelty_verdict(self._row(2, capped=False)["novelty"])
+        self.assertEqual(MIN_DISTANCE_FROM_PROVIDED, 3, "the agreed reading")
+        self.assertFalse(passes, reason)
+
+    def test_the_threshold_itself_passes_but_is_flagged_borderline(self):
+        """Whatever the threshold is, a design sitting exactly on it is the one
+        we are least sure of, so it passes and the portfolio step breaks ties
+        against it rather than refusing it outright.
+        """
+        from fourwells.ingest import (
+            novelty_verdict, to_record, MIN_DISTANCE_FROM_PROVIDED as D,
+        )
+
+        passes, reason = novelty_verdict(self._row(D, capped=True)["novelty"])
         self.assertTrue(passes)
         self.assertIn("Borderline", reason)
 
-        rec = to_record(self._row(2, capped=True))
+        rec = to_record(self._row(D, capped=True))
         self.assertTrue(rec.gates.checks["novelty"]["borderline"])
         gates.check(rec, REF, provided=[], use_abguard=False)
         self.assertTrue(rec.gates.passed, rec.gates.failed_rules)
 
-    def test_distance_three_is_not_borderline(self):
-        from fourwells.ingest import to_record
+    def test_comfortably_past_the_threshold_is_not_borderline(self):
+        from fourwells.ingest import to_record, MIN_DISTANCE_FROM_PROVIDED as D
 
-        rec = to_record(self._row(3, capped=False))
+        rec = to_record(self._row(D + 1, capped=False))
         self.assertFalse(rec.gates.checks["novelty"]["borderline"])
 
     def test_a_known_binder_fails_novelty(self):
@@ -524,9 +537,11 @@ class TestIngest(unittest.TestCase):
     def test_one_substitution_fails(self):
         from fourwells.ingest import novelty_verdict
 
+        from fourwells.ingest import MIN_DISTANCE_FROM_PROVIDED as D
+
         passes, reason = novelty_verdict(self._row(1)["novelty"])
         self.assertFalse(passes)
-        self.assertIn(">= 2", reason)
+        self.assertIn(f">= {D}", reason)
 
     def test_missing_universe_is_undecidable_not_a_pass(self):
         from fourwells.ingest import novelty_verdict
