@@ -128,6 +128,58 @@ def _splice(vh: str, old_loop: str, new_loop: str) -> str:
 # path 1: replay committed Foundry batches
 # --------------------------------------------------------------------------- #
 
+# Folding models whose interface confidence is worth feeding to the binding axis,
+# best first. Boltz-2 is deliberately absent: measured on ~8,100 VHH-antigen pairs
+# that do NOT bind, it gives 94.3% of them ipTM >= 0.7 (median 0.88 against 0.91
+# for real pairs), and it scores trastuzumab itself 0.960 -- 0.04 from the ceiling,
+# so every design clamps to "no contribution" and the number ranks nothing.
+# Protenix v2 puts the same parent at 0.676 and designs land either side of it, so
+# calibrate.adjustment() can actually discriminate on that scale.
+CONFIDENCE_MODEL_PREFERENCE = ("protenix-v2", "of3ob", "of3p2", "protenix-v1", "mol1-base")
+
+
+def _confidence_for_scoring(row: dict, refold: dict) -> dict:
+    """The structure-confidence number the binding axis should see, if any.
+
+    calibrate.adjustment() expects an ipTM-scale value against a cutoff. Handing
+    it a saturated metric is worse than handing it nothing, so we only populate
+    `iptm` from a model whose baseline leaves headroom, and record the rest as
+    context rather than as the signal.
+    """
+    by_model = row.get("refold_by_model") or {}
+    if not by_model and refold.get("model"):
+        by_model = {refold["model"]: refold}
+
+    chosen = next((m for m in CONFIDENCE_MODEL_PREFERENCE if m in by_model), None)
+    out: dict = {
+        "_models_present": sorted(by_model),
+        "_iptm_by_model": {
+            m: v.get("iptm") for m, v in sorted(by_model.items()) if v.get("iptm") is not None
+        },
+    }
+    if refold.get("min_ipae") is not None:
+        out["min_ipae"] = refold["min_ipae"]
+        out["min_ipae_model"] = refold.get("model")
+    if refold.get("binder_plddt") is not None:
+        out["binder_plddt"] = refold["binder_plddt"]
+
+    if chosen and by_model[chosen].get("iptm") is not None:
+        out["iptm"] = by_model[chosen]["iptm"]
+        out["iptm_model"] = chosen
+        out["_why"] = (
+            f"ipTM taken from {chosen}, not Boltz-2. Boltz-2 scores the parent 0.960 "
+            "and 94.3% of measured non-binders above 0.7, so on that scale every "
+            "design clamps to no contribution."
+        )
+    else:
+        out["_why"] = (
+            "no ipTM offered to the binding axis: the only refold we have is from a "
+            "model whose baseline is saturated (parent 0.960), so the number cannot "
+            "discriminate. min_ipae and binder_plddt are recorded as context."
+        )
+    return out
+
+
 def _batch_files(batch_dir: Path) -> list[Path]:
     if not batch_dir.is_dir():
         return []
@@ -165,6 +217,25 @@ def _record_from_row(row: dict, ref: ReferenceAntibody) -> DesignRecord | None:
     refold = row.get("refold") or {}
     if refold:
         rec.axis_evidence["refold"] = refold
+        conf = _confidence_for_scoring(row, refold)
+        if conf:
+            rec.axis_evidence["confidence"] = conf
+
+    # Structural epitope evidence, read off the refolded complex. score.py caps
+    # the epitope axis without this and asks for it by name.
+    if row.get("epitope_contacts"):
+        rec.axis_evidence["epitope_contacts"] = row["epitope_contacts"]
+        rec.axis_evidence["epitope_contacts_meta"] = {
+            "source_model": row.get("epitope_contacts_source"),
+            "cutoff_angstrom": 4.5,
+            "_validated": (
+                "The same method on the parent's own refold recovers 557-561, "
+                "570-573 and 593-603 -- the annotated trastuzumab epitope -- so "
+                "the measurement and the annotation agree."
+            ),
+        }
+        if row.get("epitope_contacts_by_model"):
+            rec.axis_evidence["epitope_contacts_by_model"] = row["epitope_contacts_by_model"]
 
     design_metrics = row.get("design_metrics") or {}
     if design_metrics:

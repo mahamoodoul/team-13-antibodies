@@ -24,6 +24,10 @@ import os
 import sys
 from pathlib import Path
 
+# Run with python3 -I, which keeps the script's directory off sys.path.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from epitope_contacts import contacts as _epitope_contacts  # noqa: E402
+
 THREE_TO_ONE = {
     "ALA": "A", "ARG": "R", "ASN": "N", "ASP": "D", "CYS": "C", "GLN": "Q",
     "GLU": "E", "GLY": "G", "HIS": "H", "ILE": "I", "LEU": "L", "LYS": "K",
@@ -191,6 +195,78 @@ def read_refold(run: Path) -> dict[str, dict]:
     return out
 
 
+def normalise_model(dir_name: str) -> str:
+    """Fold output directories carry suffixes (protenix-close, boltz2-close)."""
+    n = dir_name.lower()
+    for key in ("protenix-v2", "protenix-v1", "of3ob", "of3p2", "mol1-base", "boltz2", "boltz1",
+                "esmfold2", "protenix"):
+        if n.startswith(key):
+            return "protenix-v2" if key == "protenix" else key
+    return dir_name
+
+
+def fold_dirs(run: Path):
+    for d in sorted(run.iterdir()):
+        if not d.is_dir():
+            continue
+        if d.name in ("design", "prepared") or d.name.startswith("scored-"):
+            continue
+        yield d
+
+
+def per_model_scores(run: Path, example_id: str) -> dict[str, dict]:
+    """ipTM / pTM / pLDDT per folding model, straight from each model's scores.json.
+
+    refold-score only runs for the model we scored against, but every fold writes
+    its own scores. Reading them directly is what makes a per-model comparison
+    possible -- and the per-model baseline is the only way those numbers mean
+    anything, since the same parent scores 0.960 under Boltz-2 and 0.676 under
+    Protenix v2.
+    """
+    out: dict[str, dict] = {}
+    for d in fold_dirs(run):
+        hits = sorted(d.glob(f"{example_id}/*/*_scores.json"))
+        if not hits:
+            continue
+        try:
+            blob = json.loads(hits[0].read_text())
+        except (OSError, ValueError):
+            continue
+        model = normalise_model(d.name)
+        entry = {
+            "model": model,
+            "iptm": blob.get("interface_predicted_tm_score"),
+            "ptm": blob.get("predicted_tm_score"),
+            "plddt": blob.get("average_predicted_local_distance_difference_test"),
+            "ranking_score": blob.get("model_ranking_score"),
+        }
+        out[model] = {k: v for k, v in entry.items() if v is not None}
+    return out
+
+
+def refold_contacts(run: Path, example_id: str) -> dict[str, dict]:
+    """Epitope contacts from every refolded model of one design, keyed by model.
+
+    score.py caps the epitope axis without structural evidence and says the
+    contacts should come from the refold. Validated against the parent: the
+    baseline refold recovers 557-561, 570-573 and 593-603, which is the annotated
+    trastuzumab epitope, so the method and the annotation agree.
+    """
+    out: dict[str, dict] = {}
+    for model_dir in fold_dirs(run):
+        name = model_dir.name
+        hits = sorted(model_dir.glob(f"{example_id}/*/*_model.cif"))
+        if not hits:
+            continue
+        try:
+            res = _epitope_contacts(hits[0])
+        except (OSError, ValueError):
+            continue
+        if res.get("contacts"):
+            out[normalise_model(name)] = res
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("run", type=Path)
@@ -266,6 +342,16 @@ def main():
             row["design_metrics"] = metrics[example_id]
         if example_id in refold:
             row["refold"] = refold[example_id]
+        pms = per_model_scores(run, example_id)
+        if pms:
+            row["refold_by_model"] = pms
+        ec = refold_contacts(run, example_id)
+        if ec:
+            row["epitope_contacts_by_model"] = ec
+            # One consumable list: prefer the model whose confidence we trust.
+            pref = next((m for m in ("protenix-v2", "of3ob", "boltz2") if m in ec), sorted(ec)[0])
+            row["epitope_contacts"] = ec[pref]["contacts"]
+            row["epitope_contacts_source"] = pref
         rows.append(row)
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
@@ -286,6 +372,9 @@ def main():
     print(f"distinct CDRH3: {uniq}/{n} ({100*uniq/n:.0f}%)")
     with_refold = sum(1 for r in rows if "refold" in r)
     print(f"refolded: {with_refold}/{n}")
+    with_ec = sum(1 for r in rows if r.get("epitope_contacts"))
+    if with_ec:
+        print(f"with epitope contacts from the refolded complex: {with_ec}/{n}")
     if universe:
         known = sum(1 for r in rows if r["novelty"].get("in_provided_data"))
         nov_ok = sum(1 for r in rows if r["novelty"].get("passes_novelty"))
