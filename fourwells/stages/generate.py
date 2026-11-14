@@ -141,6 +141,15 @@ def _record_from_row(row: dict, ref: ReferenceAntibody) -> DesignRecord | None:
     if design_metrics:
         rec.axis_evidence["design"] = design_metrics
 
+    # The challenge filter as computed against all 525,063 provided CDRH3s. The
+    # gate stage owns the decision; this is the evidence it needs, and it is also
+    # what makes `n` pick eligible designs rather than arbitrary ones.
+    novelty = row.get("novelty") or {}
+    if novelty:
+        rec.axis_evidence["novelty"] = novelty
+        if novelty.get("identity_to_parent") is not None:
+            rec.cdrh3_identity_to_tras = novelty["identity_to_parent"]
+
     if row.get("vl"):
         rec.axis_evidence["vl"] = row["vl"]
 
@@ -354,11 +363,32 @@ def run(
         records = _stub_candidates(n, ref, random.Random(seed))
         how = "stub"
 
-    # Deterministic subset. Sorted by design_id first so `n` and `seed` pick the
-    # same designs on every machine, which the reproducibility score depends on.
+    # Deterministic subset when more designs are committed than asked for.
+    #
+    # Any choice here is a selection, so make the least opinionated one that does
+    # not waste the budget: designs that can actually be submitted come first.
+    # That is an eligibility fact, not a ranking judgment -- a design failing the
+    # challenge filter can never reach the lab, and the plan says to filter before
+    # ranking. Ordering within each group is by design_id, so the pick is
+    # reproducible on every machine and carries no quality bias that might look
+    # like us pre-ranking ahead of the ranking stage.
+    #
+    # A few ineligible designs are kept at the tail on purpose, so the gate stage
+    # still has material and its rejection-reason distribution stays informative.
+    # Pass --candidates 100 to score the whole batch; scoring 100 takes under a
+    # second, so there is little reason not to.
     if how != "stub" and n and len(records) > n:
-        records.sort(key=lambda r: r.design_id)
-        records = records[:n]
+        def eligible(rec) -> bool:
+            return bool((rec.axis_evidence.get("novelty") or {}).get("passes_challenge_filter"))
+
+        records.sort(key=lambda r: (not eligible(r), r.design_id))
+        n_eligible = sum(1 for r in records if eligible(r))
+        if n_eligible >= n:
+            # Leave one slot for a rejected design so the gate report is not empty.
+            keep = max(1, n - 1) if n > 1 else n
+            records = records[:keep] + records[n_eligible:n_eligible + (n - keep)]
+        else:
+            records = records[:n]
 
     for rec in records:
         rec.note("generate", f"source: {how}")
