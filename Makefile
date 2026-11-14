@@ -1,4 +1,7 @@
-.PHONY: demo schema test clean
+.PHONY: demo schema test unit clean
+
+unit:   ## Ranking-engine tests (gates, three axes, portfolio). Offline, ~0.1s
+	python3 -m unittest discover -s tests -t . -v
 
 demo:   ## Run the bundled example end to end, no arguments, offline
 	python3 -m fourwells.cli run --out results/ --seed 0
