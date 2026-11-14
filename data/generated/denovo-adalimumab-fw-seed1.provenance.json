@@ -1,0 +1,36 @@
+{
+  "weight": "antibody-2026-10-30",
+  "num_replicates": 100,
+  "seed": 1,
+  "compile": "true",
+  "recycle_strategy": "high/front_loaded",
+  "input": "Data/20-denovo/design.json",
+  "track": "de_novo_attempt",
+  "framework": "adalimumab",
+  "epitope_hotspots": [
+    "C/572/CD",
+    "C/573/CD1",
+    "D/591/CG2",
+    "D/593/NZ"
+  ],
+  "started_utc": "2026-11-14T10:48:42Z",
+  "image": "quay.io/apheris/oslo-hackathon:apheris-rfd4-proteina-v0.3.0-antibody-2026-10-30",
+  "target": "P04626",
+  "target_aliases": [
+    "P04626",
+    "HER2",
+    "ERBB2"
+  ],
+  "measured_outcome": {
+    "qualifies_de_novo": 0,
+    "of": 100,
+    "max_identity_to_a_known_antibody": {
+      "min": 0.77,
+      "median": 0.805,
+      "max": 0.841
+    },
+    "de_novo_ceiling": 0.7,
+    "_why": "RFD4's antibody model holds the framework fixed and only builds CDRs, and the retained framework is about 80% of the sequence. No CDR length closes a 10-point gap; these were generated at maximum CDR length specifically to test that.",
+    "_so": "These are OPTIMISATION-track designs on a different framework, kept as an uncorrelated hypothesis, not a de novo entry."
+  }
+}

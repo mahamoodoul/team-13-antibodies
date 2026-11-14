@@ -98,11 +98,30 @@ def parse_cif_chains(path: Path) -> dict[str, str]:
 
 
 def extract_cdrh3(vh: str) -> str | None:
-    i = vh.find(CDRH3_PREFIX)
+    """Pull the designed loop out of a VH by its conserved flanks.
+
+    The loop sits between the conserved cysteine motif and the FR4 tryptophan:
+
+        trastuzumab   ...AV-YYC-SR-[WGGDGFYAMD]-Y-WGQGT-LVTVSS
+        adalimumab fw ...AV-YYC-AK-[EKRISFAGNSYPTYAMD]-Y-WGQGT-LVTVSS
+
+    Anchoring on the literal "YYCSR" broke on 30 of 100 designs whose framework
+    reads YYCAK rather than YYCAR -- that position borders the designed region, so
+    it is not framework we can assume. Anchoring on YYC plus two residues, and on
+    the terminal WGQGT from the right, locates the loop in all of them.
+
+    Returns None rather than guessing if either flank is missing, so a design we
+    cannot parse is dropped loudly instead of scored on the wrong loop.
+    """
+    if not vh:
+        return None
+    i = vh.find("YYC")
     if i < 0:
         return None
-    start = i + len(CDRH3_PREFIX)
-    j = vh.rfind(CDRH3_SUFFIX)
+    start = i + 3 + 2  # YYC, then the two residues before the loop
+    j = vh.rfind("YWGQGT")
+    if j < 0:
+        j = vh.rfind("WGQGT")
     if j <= start:
         return None
     return vh[start:j]

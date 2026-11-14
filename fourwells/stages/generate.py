@@ -72,20 +72,30 @@ _MUTATION_COUNTS = [1, 2, 4, 5, 6, 7]
 # --------------------------------------------------------------------------- #
 
 def extract_cdrh3(vh: str) -> str | None:
-    """Pull the designed loop out of a full VH by its flanking framework.
+    """Pull the designed loop out of a VH by its conserved flanks.
 
-    Returns None rather than guessing if either anchor is missing, so a design we
-    cannot parse is dropped loudly instead of scored on a wrong loop.
+    The loop sits between the conserved cysteine motif and the FR4 tryptophan:
+
+        trastuzumab   ...AV-YYC-SR-[WGGDGFYAMD]-Y-WGQGT-LVTVSS
+        adalimumab fw ...AV-YYC-AK-[EKRISFAGNSYPTYAMD]-Y-WGQGT-LVTVSS
+
+    Anchoring on the literal "YYCSR" broke on 30 of 100 designs whose framework
+    reads YYCAK rather than YYCAR -- that position borders the designed region, so
+    it is not framework we can assume. Anchoring on YYC plus two residues, and on
+    the terminal WGQGT from the right, locates the loop in all of them.
+
+    Returns None rather than guessing if either flank is missing, so a design we
+    cannot parse is dropped loudly instead of scored on the wrong loop.
     """
     if not vh:
         return None
-    i = vh.find(CDRH3_PREFIX)
+    i = vh.find("YYC")
     if i < 0:
         return None
-    start = i + len(CDRH3_PREFIX)
-    # rfind: the suffix is terminal framework, so the last match is the real one
-    # even in the unlikely case that the designed loop contains it too.
-    j = vh.rfind(CDRH3_SUFFIX)
+    start = i + 3 + 2  # YYC, then the two residues before the loop
+    j = vh.rfind("YWGQGT")
+    if j < 0:
+        j = vh.rfind("WGQGT")
     if j <= start:
         return None
     return vh[start:j]
@@ -126,10 +136,18 @@ def _scfv_construct(vh: str, vl: str) -> dict:
         "vh_plus_vl_length": len(vh) + len(vl),
         "abguard_length_limit": ABGUARD_LENGTH_LIMIT,
         "length_ok": len(vh) + len(vl) <= ABGUARD_LENGTH_LIMIT,
+        "construct_within_limit": len(seq) <= ABGUARD_LENGTH_LIMIT,
+        "max_linker_for_limit": max(0, ABGUARD_LENGTH_LIMIT - (len(vh) + len(vl))),
         "_note": (
-            "abguard's 250 aa limit is stated as combined VH + VL, so the check is "
+            "abguard's 250 aa limit is stated as combined VH + VL, so length_ok is "
             "on vh_plus_vl_length. If it is enforced on the whole construct the "
-            "linker counts too; both numbers are here so either reading is covered."
+            "linker counts too, which is construct_within_limit. Both are here "
+            "because the rule is ambiguous and the two disagree for long pairs: a "
+            "242 aa pair passes on VH+VL and fails at 257 aa with this linker. "
+            "max_linker_for_limit is the longest linker that satisfies the strict "
+            "reading -- below about 10 aa an scFv linker starts to restrict VH-VL "
+            "pairing, so a pair that leaves less than that may need Fab format "
+            "instead of a shorter linker."
         ),
     }
 
