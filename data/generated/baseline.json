@@ -1,0 +1,33 @@
+{
+  "_read_this_before_using_iptm": "Boltz-2 ipTM barely separates binders from non-binders. On the 91x91 Smorodina matrices, 94.3% of shuffled non-binding pairs score ipTM >= 0.7 (median 0.88) against 99% of cognate pairs (median 0.91). AF3 separates far better: 3.0% of shuffled vs 47% of cognate at that cutoff. So a design scoring above this baseline on ipTM has NOT been shown to bind better. Use refold confidence as a feature, never as the binding score.",
+  "_what": "The baseline row. Folded through the identical path as every design: same model, same 1N8Z template, same seed, same flags.",
+  "design_id": "trastuzumab",
+  "measured_kd_median_nM": 0.1345,
+  "measured_kd_nM": [
+    0.02851802,
+    0.0378713,
+    0.07916459,
+    0.123,
+    0.146,
+    0.152,
+    0.165,
+    0.178
+  ],
+  "refold": {
+    "_binder_plddt_method": "mean per-atom pLDDT over chain B. Verified to reproduce refold-score's binder_plddt exactly on designs that went through refold-score.",
+    "_min_ipae_absent": "min_ipae is a refold-score output comparing a design to its refold. The parent has no design to compare against, so it has no min_ipae. Compare designs to each other on min_ipae, and to the parent on iptm/ptm/plddt.",
+    "binder_plddt": 98.3851,
+    "global_pde": 0.283,
+    "iptm": 0.96,
+    "model": "boltz2",
+    "plddt": 97.18,
+    "plddt_by_chain": {
+      "A": 98.553,
+      "B": 98.3851,
+      "C": 94.6296,
+      "D": 93.7692
+    },
+    "ptm": 0.969,
+    "ranking_score": 0.969
+  }
+}
