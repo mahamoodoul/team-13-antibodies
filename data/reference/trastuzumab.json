@@ -1,0 +1,44 @@
+{
+  "_what": "Trastuzumab baseline + HER2 epitope. Every score in this challenge is relative to trastuzumab, and the <70% CDRH3 identity gate is computed against cdr_h3 below.",
+
+  "_verify_first": "The provided dataset (524k CDRH3 variants) contains the parent trastuzumab row. That row is AUTHORITATIVE for this challenge — confirm every field here against it before trusting these values, and fix this file if they disagree. Numbering scheme matters: cdr_h3 below is Kabat. If abguard or the dataset uses IMGT or Chothia, the CDRH3 boundaries shift and the identity calculation changes.",
+
+  "vh": {
+    "sequence": "EVQLVESGGGLVQPGGSLRLSCAASGFNIKDTYIHWVRQAPGKGLEWVARIYPTNGYTRYADSVKGRFTISADTSKNTAYLQMNSLRAEDTAVYYCSRWGGDGFYAMDYWGQGTLVTVSS",
+    "length": 120,
+    "verified": true,
+    "sources": [
+      "DrugBank DB00072 (anti-HER2 heavy chain)",
+      "US patent 11920136 SEQ ID NO:168"
+    ]
+  },
+
+  "vl": {
+    "sequence": null,
+    "verified": false,
+    "note": "NOT verified in this session — deliberately left null rather than written from memory, because a wrong VL silently corrupts length and identity checks. Take it from the provided dataset's parent row, or from DrugBank DB00072."
+  },
+
+  "cdrs_kabat": {
+    "cdr_h1": "GFNIKDTYIH",
+    "cdr_h2": "RIYPTNGYTRYADSVKG",
+    "cdr_h3": "WGGDGFYAMDY",
+    "verified": true,
+    "source": "US app 20190194349 (CDR1/2/3 given explicitly with trastuzumab framework); cdr_h3 independently confirmed inside the vh sequence above as ...YYCSR-WGGDGFYAMDY-WGQGT...",
+    "note": "cdr_h3 is 11 aa. At the <70% identity ceiling, at least 4 of 11 positions must differ for an optimisation-track design to pass abguard. Conservative 1-2 point mutants WILL be rejected."
+  },
+
+  "her2": {
+    "uniprot": "P04626",
+    "complex_structures": ["1N8Z (X-ray, 2.52 A, trastuzumab Fab + HER2 ECD)", "8PWH (cryo-EM, HER2 + trastuzumab + pertuzumab)"],
+    "trastuzumab_epitope_domain": "IV (juxtamembrane)",
+    "contact_regions": [
+      {"residues": "557-561", "source": "1N8Z and confirmed in 8PWH"},
+      {"residues": "570-573", "source": "1N8Z and confirmed in 8PWH"},
+      {"residues": "593-603", "source": "1N8Z and confirmed in 8PWH"},
+      {"residues": "581-590", "source": "8PWH only — a domain IV loop not resolved in earlier structures; MD suggests it stays associated with trastuzumab", "confidence": "lower"}
+    ],
+    "_use": "De novo designs must be epitope-conditioned on these residues. A binder that hits HER2 anywhere else cannot compete with trastuzumab, so it can never be S-tier however tightly it binds. Use these as hotspots for RFD4-Proteina conditioning.",
+    "_caution": "Residue numbering is for full-length HER2 including signal peptide (UniProt P04626). Confirm the offset against whatever construct the generation model and abguard expect before using these as hotspot indices — an off-by-22 (signal peptide) error here is easy and silent."
+  }
+}
