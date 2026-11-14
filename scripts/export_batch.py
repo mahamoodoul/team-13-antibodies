@@ -39,6 +39,20 @@ CDRH3_PREFIX = "YYCSR"
 CDRH3_SUFFIX = "YWGQGT"
 PARENT_CDRH3 = "WGGDGFYAMD"
 UNIVERSE = Path.home() / "data" / "tidy" / "provided_cdrh3_universe.txt"
+# The committed fallback, so novelty can be recomputed off the VM. The VM is
+# wiped tonight and this script outlives it.
+UNIVERSE_COMMITTED = (
+    Path(__file__).resolve().parent.parent
+    / "data" / "reference" / "provided_cdrh3_universe.txt.gz"
+)
+
+# How far we resolve the distance to the nearest provided sequence. 3, not 2,
+# because 2 is the single value where the rule's wording ("more than 2 point
+# mutations from any provided antibody") and its measured behaviour (rejects
+# only at <= 1) disagree. Capping at 2 made every passing design report exactly
+# "2", so generation could not steer towards the unambiguous band and the whole
+# shortlist sat on an unsettled reading. Matches gates.novelty_from_universe.
+NOVELTY_CAP = 3
 
 # Keep the per-design metrics that say something about the design, and drop the
 # ~70 config columns that just echo the run settings.
@@ -128,41 +142,112 @@ def extract_cdrh3(vh: str) -> str | None:
 
 
 def load_universe() -> set[str]:
-    if not UNIVERSE.exists():
-        print(f"WARNING: {UNIVERSE} missing — novelty not checked", file=sys.stderr)
+    """Every provided CDRH3, from the VM copy or the committed gzip."""
+    if UNIVERSE.exists():
+        text = UNIVERSE.read_text()
+    elif UNIVERSE_COMMITTED.exists():
+        import gzip
+
+        with gzip.open(UNIVERSE_COMMITTED, "rt") as fh:
+            text = fh.read()
+    else:
+        print(
+            f"WARNING: no provided-CDRH3 universe ({UNIVERSE} or "
+            f"{UNIVERSE_COMMITTED}) — novelty not checked",
+            file=sys.stderr,
+        )
         return set()
-    return {l.strip().upper() for l in UNIVERSE.read_text().splitlines() if l.strip()}
+    return {l.strip().upper() for l in text.splitlines() if l.strip()}
 
 
 AA_ALPHABET = "ACDEFGHIKLMNPQRSTVWY"
 
 
-def min_substitutions_capped(loop: str, universe: set[str]) -> int | None:
-    """How far `loop` is from the nearest provided sequence, capped at 2.
+def min_substitutions_capped(
+    loop: str, universe: set[str], cap: int = NOVELTY_CAP
+) -> int | None:
+    """How far `loop` is from the nearest provided sequence, capped at `cap`.
 
     Returns 0 (the loop is in the provided data), 1 (a single substitution from a
-    provided sequence), or 2 (meaning "2 or more" — the filter is satisfied).
+    provided sequence), 2 (exactly two — passes the filter as measured, but the
+    wording reads as "more than 2", so it is the ambiguous band), or `cap`
+    meaning "`cap` or more" — unambiguously clear of the rule either way.
 
-    The filter only asks whether a design differs at 2+ positions from every
-    provided sequence, so the exact distance beyond 2 is not needed. Testing it
-    by generating the loop's own 1-neighbourhood is ~190 set lookups instead of
-    525,063 string comparisons, and is exact rather than approximate.
+    Enumerating the loop's own substitution neighbourhood and doing set lookups
+    is exact, and far cheaper than scanning 525,063 rows per design: ~190
+    lookups for distance 1 and ~16k for distance 2 on a 10-mer.
+
+    This is the authoritative number generation ships. It must agree with
+    gates.novelty_from_universe, which recomputes it for a judge's own run.
     """
     if not universe:
         return None
+    loop = loop.upper()
     if loop in universe:
         return 0
-    chars = list(loop)
-    for i, original in enumerate(chars):
-        for sub in AA_ALPHABET:
-            if sub == original:
+
+    n = len(loop)
+    for i in range(n):
+        orig = loop[i]
+        for aa in AA_ALPHABET:
+            if aa == orig:
                 continue
-            chars[i] = sub
-            if "".join(chars) in universe:
-                chars[i] = original
+            if loop[:i] + aa + loop[i + 1 :] in universe:
                 return 1
-        chars[i] = original
-    return 2
+
+    if cap >= 2:
+        for i in range(n):
+            oi = loop[i]
+            for ai in AA_ALPHABET:
+                if ai == oi:
+                    continue
+                first = loop[:i] + ai + loop[i + 1 :]
+                for j in range(i + 1, n):
+                    oj = first[j]
+                    for aj in AA_ALPHABET:
+                        if aj == oj:
+                            continue
+                        if first[:j] + aj + first[j + 1 :] in universe:
+                            return 2
+
+    return cap
+
+
+def novelty_block(cdrh3: str, muts: int | None, universe: set[str]) -> dict:
+    """The novelty verdict generation ships for one design.
+
+    `borderline` is the field the portfolio step needs: a design at exactly 2
+    substitutions passes the filter as the tool measures it, but fails the
+    project text's "more than 2" wording. Those two readings disagree only at
+    2, so flagging that one value is what lets selection prefer designs that
+    are submittable under either reading.
+    """
+    nov = {
+        "cdrh3_length": len(cdrh3),
+        "mutations_from_parent": muts,
+        "identity_to_parent": (
+            round(1 - muts / len(cdrh3), 4) if muts is not None else None
+        ),
+    }
+    if not universe:
+        return nov
+
+    mh = min_substitutions_capped(cdrh3, universe, NOVELTY_CAP)
+    nov["min_substitutions_from_any_provided"] = mh
+    if mh is not None and mh >= NOVELTY_CAP:
+        nov["min_substitutions_is_capped_at"] = NOVELTY_CAP
+    nov["in_provided_data"] = (mh == 0)
+    # The filter as measured: >= 2 differences from every provided sequence,
+    # and at least 4 of 10 changed from the parent (the strict <70% reading).
+    nov["passes_novelty"] = bool(mh is not None and mh >= 2)
+    nov["passes_identity_ceiling"] = bool(muts is not None and muts >= 4)
+    nov["passes_challenge_filter"] = bool(
+        nov["passes_novelty"] and nov["passes_identity_ceiling"]
+    )
+    # Submittable under the strict wording too, not just as measured.
+    nov["borderline"] = bool(mh == 2)
+    nov["passes_novelty_strict"] = bool(mh is not None and mh >= 3)
+    return nov
 
 
 def read_metrics(run: Path) -> dict[str, dict]:
@@ -286,17 +371,91 @@ def refold_contacts(run: Path, example_id: str) -> dict[str, dict]:
     return out
 
 
+def recompute_novelty(paths: list[Path]) -> int:
+    """Re-derive the novelty block for already-exported batches, in place.
+
+    The run directories live on the VM and the VM is wiped tonight, but the
+    novelty verdict only needs the CDRH3 and the committed universe — both of
+    which are in the repo. So raising the cap does not require regenerating.
+    """
+    universe = load_universe()
+    if not universe:
+        raise SystemExit("cannot recompute novelty without the provided universe")
+    # The rule is a substitution count, so it is only defined between loops of
+    # equal length. A de novo 17-19mer cannot sit N substitutions from a 10mer
+    # at any N, and the de novo export records that as null with a basis note
+    # rather than a number. Recomputing those would replace a deliberate "does
+    # not apply" with a vacuous "3".
+    provided_lengths = {len(s) for s in universe}
+    changed_files = 0
+    for path in paths:
+        rows = [json.loads(l) for l in path.read_text().splitlines() if l.strip()]
+        moved = 0
+        skipped = 0
+        for row in rows:
+            cdrh3 = row.get("cdrh3")
+            if not cdrh3:
+                continue
+            if len(cdrh3) not in provided_lengths:
+                skipped += 1
+                continue
+            old = row.get("novelty") or {}
+            before = old.get("min_substitutions_from_any_provided")
+            muts = old.get("mutations_from_parent")
+            if muts is None and len(cdrh3) == len(PARENT_CDRH3):
+                muts = sum(1 for a, b in zip(cdrh3, PARENT_CDRH3) if a != b)
+            new = novelty_block(cdrh3, muts, universe)
+            # Keep anything the original block carried that we do not derive,
+            # e.g. the de novo export's basis note for non-10-mer loops.
+            for k, v in old.items():
+                new.setdefault(k, v)
+            new.pop("min_substitutions_is_capped_at_2", None)
+            row["novelty"] = new
+            if new.get("min_substitutions_from_any_provided") != before:
+                moved += 1
+        path.write_text("".join(json.dumps(r, sort_keys=True) + "\n" for r in rows))
+        unamb = sum(
+            1 for r in rows if (r.get("novelty") or {}).get("passes_novelty_strict")
+        )
+        border = sum(1 for r in rows if (r.get("novelty") or {}).get("borderline"))
+        note = (
+            f", {skipped} left alone (CDRH3 length the rule is not defined on)"
+            if skipped else ""
+        )
+        print(
+            f"{path.name}: {len(rows)} designs, {moved} distances resolved further, "
+            f"{unamb} unambiguous (>=3), {border} borderline (exactly 2){note}"
+        )
+        changed_files += 1
+    return changed_files
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("run", type=Path)
-    ap.add_argument("--weight", required=True)
-    ap.add_argument("--seed", type=int, required=True)
-    ap.add_argument("--out", type=Path, required=True)
+    ap.add_argument("run", type=Path, nargs="?")
+    ap.add_argument("--weight")
+    ap.add_argument("--seed", type=int)
+    ap.add_argument("--out", type=Path)
     ap.add_argument("--prefix", default=None, help="design_id prefix (default: run dir name)")
     ap.add_argument("--track", default="optimisation")
     ap.add_argument("--format", dest="fmt", default="scfv")
     ap.add_argument("--skip-novelty", action="store_true")
+    ap.add_argument(
+        "--recompute-novelty",
+        type=Path,
+        nargs="+",
+        metavar="JSONL",
+        help="re-derive novelty in place for exported batches; no run dir needed",
+    )
     args = ap.parse_args()
+
+    if args.recompute_novelty:
+        recompute_novelty(args.recompute_novelty)
+        return
+
+    for required in ("run", "weight", "seed", "out"):
+        if getattr(args, required) is None:
+            ap.error(f"--{required} is required when exporting a run")
 
     run = args.run
     prefix = args.prefix or run.name
@@ -337,26 +496,7 @@ def main():
             "seed": args.seed,
             "parent": "trastuzumab",
         }
-        nov = {
-            "cdrh3_length": len(cdrh3),
-            "mutations_from_parent": muts,
-            "identity_to_parent": (
-                round(1 - muts / len(cdrh3), 4) if muts is not None else None
-            ),
-        }
-        if universe:
-            mh = min_substitutions_capped(cdrh3, universe)
-            nov["min_substitutions_from_any_provided"] = mh
-            nov["min_substitutions_is_capped_at_2"] = True
-            nov["in_provided_data"] = (mh == 0)
-            # The filter: >=2 differences from every provided sequence, and at
-            # least 4 of 10 changed from the parent (the strict <70% reading).
-            nov["passes_novelty"] = bool(mh is not None and mh >= 2)
-            nov["passes_identity_ceiling"] = bool(muts is not None and muts >= 4)
-            nov["passes_challenge_filter"] = bool(
-                nov["passes_novelty"] and nov["passes_identity_ceiling"]
-            )
-        row["novelty"] = nov
+        row["novelty"] = novelty_block(cdrh3, muts, universe)
         if example_id in metrics:
             row["design_metrics"] = metrics[example_id]
         if example_id in refold:
