@@ -202,8 +202,31 @@ def cheap_checks(rec: DesignRecord, failed: list[str], checks: dict) -> None:
     if bad:
         failed.append(f"non-natural residues: {''.join(bad)}")
 
-    if total > MAX_LENGTH:
-        failed.append(f"length {total} > {MAX_LENGTH}")
+    # The limit applies to the molecule we actually order, not to whichever
+    # chain happens to sit in rec.sequence. Generation records the assembled
+    # scFv under axis_evidence["construct"]; measuring rec.sequence instead
+    # reads 120 aa for a 242 aa construct and turns an 8 aa margin into an
+    # apparent 130 aa one. RFD4 varies loop length freely, so that margin is
+    # the thing most likely to move.
+    construct = (rec.axis_evidence or {}).get("construct") or {}
+    measured, basis = total, "sequence"
+    if isinstance(construct, dict):
+        candidates = [
+            v for v in (construct.get("length"), construct.get("vh_plus_vl_length"))
+            if isinstance(v, int)
+        ]
+        if candidates:
+            # Worst case of the two readings: abguard states the limit as
+            # combined VH + VL, and whether the linker counts is unconfirmed.
+            measured = max(candidates + [total])
+            basis = "construct"
+            checks["construct_length"] = construct.get("length")
+            checks["vh_plus_vl_length"] = construct.get("vh_plus_vl_length")
+    checks["length_measured"] = measured
+    checks["length_basis"] = basis
+
+    if measured > MAX_LENGTH:
+        failed.append(f"length {measured} ({basis}) > {MAX_LENGTH}")
 
     # Per chain, not per construct: two chains each carrying one free cysteine
     # sum to an even count and would read as paired if checked in one go.

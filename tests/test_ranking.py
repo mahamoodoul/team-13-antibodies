@@ -567,3 +567,32 @@ class TestTransferGuard(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class ConstructLengthGate(unittest.TestCase):
+    """The 250 limit applies to the molecule we order, not to one chain."""
+
+    def _rec(self, construct):
+        rec = make("construct-len", "WEGDKFYMMH")
+        rec.axis_evidence["construct"] = construct
+        return rec
+
+    def test_construct_length_is_what_gets_measured(self):
+        rec = self._rec({"length": 242, "vh_plus_vl_length": 227})
+        gates.check(rec, REF, provided=[], use_abguard=False)
+        self.assertEqual(rec.gates.checks["length_measured"], 242)
+        self.assertEqual(rec.gates.checks["length_basis"], "construct")
+
+    def test_an_over_long_construct_is_rejected(self):
+        """A 120 aa VH would pass on its own; the real construct must not."""
+        rec = self._rec({"length": 262, "vh_plus_vl_length": 247})
+        gates.check(rec, REF, provided=[], use_abguard=False)
+        self.assertFalse(rec.gates.passed)
+        self.assertTrue(
+            any("262" in f for f in rec.gates.failed_rules), rec.gates.failed_rules
+        )
+
+    def test_falls_back_to_the_sequence_when_no_construct(self):
+        rec = make("no-construct", "WEGDKFYMMH")
+        gates.check(rec, REF, provided=[], use_abguard=False)
+        self.assertEqual(rec.gates.checks["length_basis"], "sequence")
