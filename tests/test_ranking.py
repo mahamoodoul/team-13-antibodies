@@ -632,3 +632,48 @@ class ConstructLengthGate(unittest.TestCase):
         rec = make("no-construct", "WEGDKFYMMH")
         gates.check(rec, REF, provided=[], use_abguard=False)
         self.assertEqual(rec.gates.checks["length_basis"], "sequence")
+
+
+class ScfvLinkerFeasibility(unittest.TestCase):
+    """A construct can be too long AND have no legal way to be shortened.
+
+    This is the seam the denovo batch fell through. Its VH+VL is 242-244, which
+    passes the lenient reading of the 250 aa limit, so `length_ok` is True --
+    but the scFv we would actually order is 257-259 and the only linkers short
+    enough to fit are too short to fold as an scFv at all. The record has to say
+    that, or it reports `max_linker_for_limit: 6` and invites the fix that
+    cannot work.
+    """
+
+    def test_our_optimisation_batches_have_room_for_a_real_linker(self):
+        from fourwells.stages.generate import _scfv_construct, MIN_SCFV_LINKER
+
+        c = _scfv_construct("A" * 120, "B" * 107)  # optA, optB, multicdr
+        self.assertEqual(c["vh_plus_vl_length"], 227)
+        self.assertEqual(c["length"], 242)
+        self.assertTrue(c["construct_within_limit"])
+        self.assertTrue(c["linker_feasible"])
+        self.assertGreaterEqual(c["max_linker_for_limit"], MIN_SCFV_LINKER)
+
+    def test_denovo_shape_has_no_legal_linker_at_all(self):
+        from fourwells.stages.generate import _scfv_construct
+
+        c = _scfv_construct("A" * 131, "B" * 113)  # the longest denovo design
+        self.assertEqual(c["length"], 259)
+        self.assertTrue(c["length_ok"], "passes the lenient VH+VL reading")
+        self.assertFalse(c["construct_within_limit"], "fails on the real construct")
+        self.assertEqual(c["max_linker_for_limit"], 6)
+        self.assertFalse(
+            c["linker_feasible"],
+            "6 aa fits the limit but cannot fold as an scFv -- it would be a diabody",
+        )
+
+    def test_a_g4s2_linker_does_not_rescue_the_denovo_batch(self):
+        """The proposed fix, measured: (G4S)2 buys 5 residues and needs 7-9."""
+        from fourwells.stages.generate import MIN_SCFV_LINKER
+
+        for vh_plus_vl in (242, 243, 244):
+            self.assertGreater(vh_plus_vl + 10, 250, "(G4S)2 still over the limit")
+            self.assertLess(
+                250 - vh_plus_vl, MIN_SCFV_LINKER, "and no legal linker exists"
+            )
