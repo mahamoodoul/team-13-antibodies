@@ -86,6 +86,35 @@ def _identity(a: str, b: str) -> float | None:
     return round(1.0 - d / len(a), 4)
 
 
+# A design has to be expressed to be measured at all, and abguard checks the
+# combined VH+VL length against 250. The parent pair is 227 aa, so a standard
+# (G4S)3 linker leaves 242 -- inside the limit with room to spare. Emitting the
+# construct here means the order sheet quotes a sequence someone can actually
+# synthesise, rather than two chains and an assumption.
+SCFV_LINKER = "GGGGS" * 3
+ABGUARD_LENGTH_LIMIT = 250
+
+
+def _scfv_construct(vh: str, vl: str) -> dict:
+    """The submittable scFv, VH-(G4S)3-VL, with its length check."""
+    seq = f"{vh}{SCFV_LINKER}{vl}"
+    return {
+        "format": "scfv",
+        "orientation": "VH-linker-VL",
+        "linker": SCFV_LINKER,
+        "sequence": seq,
+        "length": len(seq),
+        "vh_plus_vl_length": len(vh) + len(vl),
+        "abguard_length_limit": ABGUARD_LENGTH_LIMIT,
+        "length_ok": len(vh) + len(vl) <= ABGUARD_LENGTH_LIMIT,
+        "_note": (
+            "abguard's 250 aa limit is stated as combined VH + VL, so the check is "
+            "on vh_plus_vl_length. If it is enforced on the whole construct the "
+            "linker counts too; both numbers are here so either reading is covered."
+        ),
+    }
+
+
 def _splice(vh: str, old_loop: str, new_loop: str) -> str:
     """Put a new loop into a VH between the framework anchors."""
     i = vh.find(CDRH3_PREFIX)
@@ -152,6 +181,7 @@ def _record_from_row(row: dict, ref: ReferenceAntibody) -> DesignRecord | None:
 
     if row.get("vl"):
         rec.axis_evidence["vl"] = row["vl"]
+        rec.axis_evidence["construct"] = _scfv_construct(vh, row["vl"])
 
     src = row.get("batch") or "foundry"
     if muts is None:
