@@ -25,6 +25,38 @@ Format = Literal["vhh", "scfv", "fab"]
 AXES = ("binding", "epitope", "stability")
 
 
+def distance_cap(nov: dict) -> int | None:
+    """The ceiling the export applied to the provided-sequence distance, if any.
+
+    The cap moved from 2 to 3 when the strict reading of the novelty rule was
+    adopted, and the key moved with it: `min_substitutions_is_capped_at_2: true`
+    became `min_substitutions_is_capped_at: 3`. Both are read so batches
+    exported either side of that change describe themselves correctly.
+    """
+    v = nov.get("min_substitutions_is_capped_at")
+    if isinstance(v, int) and not isinstance(v, bool):
+        return v
+    if nov.get("min_substitutions_is_capped_at_2"):
+        return 2
+    return None
+
+
+def distance_is_capped(nov: dict) -> bool:
+    """Whether this record's distance is a ceiling ("at least N") or an exact value.
+
+    Only a distance that reaches the cap is a ceiling. The export stops
+    counting at the cap because the filter only asks whether a design differs
+    at N or more positions, so a design reported at the cap may sit far beyond
+    it -- but one reported below the cap was measured exactly. Reading the cap
+    as "every distance is approximate" understates the close designs; ignoring
+    it reports "exactly 3" for a design that may be at 7. Both are wrong in a
+    string a judge reads, and they are wrong in opposite directions.
+    """
+    cap = distance_cap(nov)
+    dist = nov.get("min_substitutions_from_any_provided")
+    return cap is not None and isinstance(dist, int) and dist >= cap
+
+
 @dataclass
 class Gates:
     """Hard filters. A design that fails any of these never reaches the lab."""

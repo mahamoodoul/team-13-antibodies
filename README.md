@@ -7,6 +7,8 @@ Two S-tier designs beat ten that each improve one thing.
 Full brief: **[docs/brief.md](docs/brief.md)** — submission rules, data, models, scoring.
 The plan: **[docs/plan.md](docs/plan.md)** — strategy, who owns what, the day, the pitch.
 
+**Live shortlist visualiser:** https://mahamoodoul.github.io/team-13-antibodies/ — the scored pool, each design's dossier, and the trastuzumab–HER2 complex with a design's own substitutions marked on it. Source: [viz/](viz/).
+
 ## Start here
 
 Ask in `#team-13` for the **VM IP and the SSH key**. The API keys are already on the

@@ -73,6 +73,33 @@ def record_to_row(r) -> dict:
     }
 
 
+def floors(rows: list[dict], loop_len: int) -> dict:
+    """Where the two near-parent lines sit on the chart, derived rather than typed in.
+
+    identity  the fewest CDRH3 substitutions that put a loop of this length under
+              the <70% ceiling. Same formula as the gate, so line and rule agree.
+
+    strict    the fewest substitutions among optimisation designs that pass every
+              gate AND sit at distance >= 3 from the provided set. That is the band
+              the team chose on the strict reading. It is measured from the pool,
+              so the line moves if the pool does.
+    """
+    from fourwells.stages.gates import MAX_CDRH3_IDENTITY
+
+    identity = int(loop_len * (1 - MAX_CDRH3_IDENTITY)) + 1
+    strict_pool = [
+        r["parent_subs"]
+        for r in rows
+        if r["passed"]
+        and not r["is_baseline"]
+        and r["track"] == "optimisation"
+        and r["parent_subs"] is not None
+        and r["novelty_dist"] is not None
+        and r["novelty_dist"] >= 3
+    ]
+    return {"identity": identity, "strict": min(strict_pool) if strict_pool else None}
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--candidates", type=int, default=400)
@@ -94,6 +121,7 @@ def main(argv: list[str] | None = None) -> int:
 
     rows = [record_to_row(r) for r in result.records]
     audit = portfolio_stage.audit(result.records, budget=args.budget)
+    lines = floors(rows, len(ref.cdrh3))
 
     blob = {
         "meta": {
@@ -110,6 +138,8 @@ def main(argv: list[str] | None = None) -> int:
             "baseline_kd_n": (ref.meta.get("baseline_measurements") or {}).get("n"),
             "epitope_residues": target.epitope_residues,
             "budget": args.budget,
+            "floor_identity": lines["identity"],
+            "floor_strict": lines["strict"],
             "seed": args.seed,
             "n_pool": len(rows),
             "n_passed": sum(1 for r in rows if r["passed"]),

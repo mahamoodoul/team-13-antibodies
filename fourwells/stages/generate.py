@@ -123,6 +123,13 @@ def _identity(a: str, b: str) -> float | None:
 SCFV_LINKER = "GGGGS" * 3
 ABGUARD_LENGTH_LIMIT = 250
 
+# The shortest VH-VL linker that still folds as a monomeric scFv. Not a style
+# preference: a linker of 3-12 residues cannot form an intramolecular Fv and
+# pairs with a second copy into a bivalent diabody instead (PMID 10436086,
+# 12856620); a measured linker series stayed monomeric only above 11 residues
+# (PMID 8577701). Below it the molecule we ship is not the molecule we scored.
+MIN_SCFV_LINKER = 12
+
 
 def _scfv_construct(vh: str, vl: str) -> dict:
     """The submittable scFv, VH-(G4S)3-VL, with its length check."""
@@ -138,6 +145,15 @@ def _scfv_construct(vh: str, vl: str) -> dict:
         "length_ok": len(vh) + len(vl) <= ABGUARD_LENGTH_LIMIT,
         "construct_within_limit": len(seq) <= ABGUARD_LENGTH_LIMIT,
         "max_linker_for_limit": max(0, ABGUARD_LENGTH_LIMIT - (len(vh) + len(vl))),
+        "min_scfv_linker": MIN_SCFV_LINKER,
+        # Does a linker exist that is both short enough for the 250 aa limit and
+        # long enough to fold as an scFv at all? For the denovo batch the answer
+        # is no: VH+VL is 242-244, leaving 6-8 aa, under a floor of 12. Without
+        # this the record reports "max_linker_for_limit: 6" and invites exactly
+        # the fix that cannot work.
+        "linker_feasible": (
+            ABGUARD_LENGTH_LIMIT - (len(vh) + len(vl)) >= MIN_SCFV_LINKER
+        ),
         "_note": (
             "abguard's 250 aa limit is stated as combined VH + VL, so length_ok is "
             "on vh_plus_vl_length. If it is enforced on the whole construct the "
@@ -145,9 +161,17 @@ def _scfv_construct(vh: str, vl: str) -> dict:
             "because the rule is ambiguous and the two disagree for long pairs: a "
             "242 aa pair passes on VH+VL and fails at 257 aa with this linker. "
             "max_linker_for_limit is the longest linker that satisfies the strict "
-            "reading -- below about 10 aa an scFv linker starts to restrict VH-VL "
-            "pairing, so a pair that leaves less than that may need Fab format "
-            "instead of a shorter linker."
+            "reading. Treat 12 aa as the floor, not a soft preference: a linker "
+            "of 3-12 residues CANNOT fold into a functional Fv domain and pairs "
+            "with a second copy into a bivalent diabody instead (PMID 10436086, "
+            "12856620), and a linker series measured directly stayed monomeric "
+            "only above 11 residues (PMID 8577701). On this very target an "
+            "anti-ErbB2 scFv was turned into a diabody precisely by cutting its "
+            "linker 15 -> 5 aa, with dissociation up to 15x slower from avidity "
+            "(PMID 11103810) -- so shortening the linker to fit the limit would "
+            "buy an SPR number from valency rather than from the design. A pair "
+            "that leaves less than 12 aa needs Fab format or shorter CDRs, never "
+            "a shorter linker."
         ),
     }
 
