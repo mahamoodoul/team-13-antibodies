@@ -91,15 +91,10 @@ def _command_line(args) -> str:
 
 def cmd_run(args) -> int:
     random.seed(args.seed)
-    try:
-        target = resolve_target(args.target)
-    except ValueError as e:
-        print(f"{RED}error:{R} {e}", file=sys.stderr)
-        return 2
     ref = resolve_reference_ab(args.reference)
 
     config = {
-        "target": getattr(target, "name", None) or str(args.target or "HER2 P04626"),
+        "target": str(args.target or "HER2 P04626"),
         "reference": getattr(ref, "name", None) or str(args.reference or "trastuzumab"),
         "budget": args.budget,
         "candidates": args.candidates,
@@ -114,7 +109,15 @@ def cmd_run(args) -> int:
     config["run_id"] = run_id
     calllog.set_log(calllog.CallLog(run_id=run_id, enabled=not args.no_log))
 
+    # Resolved after the call log exists, so a UniProt fetch (or the offline
+    # block that replaces it) lands in this run's log rather than a stray one.
     cache = Cache(offline=not args.online)
+    try:
+        target = resolve_target(args.target, cache)
+    except ValueError as e:
+        print(f"{RED}error:{R} {e}", file=sys.stderr)
+        return 2
+
     result = run_pipeline(
         target=target,
         ref=ref,
@@ -143,6 +146,13 @@ def cmd_report(args) -> int:
     from .report import main as report_main
 
     return report_main([args.rundir])
+
+
+def cmd_order_sheet(args) -> int:
+    """The one page that leaves our hands and turns into molecules."""
+    from .ordersheet import main as ordersheet_main
+
+    return ordersheet_main([args.rundir])
 
 
 def cmd_logs(args) -> int:
@@ -208,6 +218,10 @@ def build_parser() -> argparse.ArgumentParser:
     rp = sub.add_parser("report", help="re-render the report from an existing run")
     rp.add_argument("rundir", help="a run directory holding designs.jsonl")
     rp.set_defaults(func=cmd_report)
+
+    os_ = sub.add_parser("order-sheet", help="render the one-page order sheet for the lab")
+    os_.add_argument("rundir", help="a run directory holding designs.jsonl")
+    os_.set_defaults(func=cmd_order_sheet)
 
     lg = sub.add_parser("logs", help="browse the call log: requests, responses, timings")
     lg.add_argument("--serve", action="store_true", help="live view on localhost")

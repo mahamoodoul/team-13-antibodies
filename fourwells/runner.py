@@ -216,4 +216,23 @@ def write_outputs(
             paths.pop("report_md", None)
             paths.pop("report_html", None)
 
+        # The order sheet is a separate try: it is the artefact that turns into
+        # molecules, so a failure in the report's renderer must not take it with
+        # it, and vice versa.
+        from . import ordersheet as ordersheet_mod
+
+        try:
+            paths["order_sheet_md"], paths["order_sheet_html"] = (
+                ordersheet_mod.write_outputs(
+                    out_dir, result.records, result.selected, config
+                )
+            )
+        except Exception as exc:  # noqa: BLE001 — a bad view must not lose the data
+            result.warnings.append(
+                f"order sheet rendering failed ({exc.__class__.__name__}: {exc}); "
+                f"re-render with `python3 -m fourwells.ordersheet {out_dir}`"
+            )
+            paths.pop("order_sheet_md", None)
+            paths.pop("order_sheet_html", None)
+
     return paths

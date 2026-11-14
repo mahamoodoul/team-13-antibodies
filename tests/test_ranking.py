@@ -395,6 +395,34 @@ class TestPortfolio(unittest.TestCase):
         report = portfolio.audit(recs, budget=4)
         self.assertTrue(any("optimisation track" in b for b in report["blockers"]))
 
+    def _passing_four(self, is_stub: bool = False):
+        recs = []
+        for i, cdrh3 in enumerate(["WEGDKFYMMH", "QRTDWYFDVL", "HHPLNNSTWG", "ADGKIRTEPQ"]):
+            r = make(f"t{i}", cdrh3, is_stub=is_stub)
+            r.axes = {a: 0.5 for a in AXES}
+            r.gates.passed = True
+            r.gates.checks = {"abguard": {"status": "pass"}}
+            recs.append(r)
+        portfolio.run(recs, budget=4)
+        return portfolio.audit(recs, budget=4)
+
+    def test_stub_shortlist_is_never_submission_ready(self):
+        """Stubs are random CDRH3 substitutions, not designs.
+
+        They pass gates and get scored on purpose so the offline demo runs with
+        no VM, which means the readiness flag is the only thing standing between
+        a fallback run and submitting sequences nobody designed. Pinned with a
+        passing abguard so this cannot ride on the abguard blocker instead.
+        """
+        report = self._passing_four(is_stub=True)
+        self.assertFalse(report["submission_ready"])
+        self.assertTrue(any("STUB" in b for b in report["blockers"]))
+
+    def test_real_designs_with_abguard_are_submission_ready(self):
+        report = self._passing_four(is_stub=False)
+        self.assertTrue(report["submission_ready"])
+        self.assertFalse(any("STUB" in b for b in report["blockers"]))
+
 
 class TestTransferGuard(unittest.TestCase):
     """The guard that kept a bad model out of the ranker.

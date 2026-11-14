@@ -318,16 +318,30 @@ def audit(records: list[DesignRecord], budget: int = 4) -> dict:
         if ((r.gates.checks or {}).get("abguard") or {}).get("status") != "pass"
     ]
 
+    # Stubs are random CDRH3 substitutions from the offline fallback generator.
+    # They flow through gates, scoring and portfolio on purpose, because the
+    # demo has to run with no VM and no Docker — so the only place that can
+    # stop them is here. Today they are masked by the abguard blocker, which
+    # is luck: the first run on the VM where abguard passes would otherwise
+    # report submission_ready on sequences nobody designed.
+    stubs = [r.design_id for r in picked if r.is_stub]
+
     out: dict = {
         "n_selected": len(picked),
         "budget": budget,
         "clusters_represented": sorted({r.cluster for r in picked if r.cluster}),
         "tracks": tracks,
         "joint_scores": {r.design_id: r.joint_score for r in picked},
-        "submission_ready": not unverified_abguard and len(picked) == budget,
+        "submission_ready": not unverified_abguard and not stubs and len(picked) == budget,
     }
 
     blockers: list[str] = []
+    if stubs:
+        blockers.append(
+            f"{len(stubs)} of the shortlist are STUB records ({', '.join(stubs)}) — "
+            "random CDRH3 substitutions from the offline fallback generator, not "
+            "designs. Commit a real Foundry batch under data/generated/ before submitting."
+        )
     if unverified_abguard:
         blockers.append(
             f"{len(unverified_abguard)} of the shortlist have no abguard pass "
