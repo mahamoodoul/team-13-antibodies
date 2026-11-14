@@ -280,6 +280,20 @@ the fold budget still landed outside the shortlist, because the problem was neve
 selection. It was that measured evidence is scored on a scale that cannot compete with
 inferred evidence.
 
+**The sharpest way to state it: the ranker is selecting on absence of evidence.** Over the
+passing pool under the strict reading:
+
+| basis | n | epitope range | median |
+| --- | --- | --- | --- |
+| prior (never folded) | 146 | 0.071 – 0.374 | 0.247 |
+| structural (folded) | 59 | 0.029 – **0.148** | 0.134 |
+
+**142 of the 146 unfolded designs — 97% — cannot be outscored on this axis by any folded
+design, however perfectly it preserves the epitope**, because the structural ceiling of 0.148
+sits below almost the entire prior range. The top 15 of the current ranking are therefore all
+prior-based, and that is not a coverage gap we can fold our way out of: every additional fold
+*demotes* the design it measures. Spending more GPU makes this worse, not better.
+
 The fix belongs in `score.py`, which is Rizve's. What generation owes it is the calibration
 point, and that is now committed: the parent's measured contacts, in both models, in
 `baseline.json` and `baseline-protenix-v2.json`.
