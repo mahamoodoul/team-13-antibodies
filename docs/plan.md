@@ -124,10 +124,10 @@ other.** Everyone writes against the schema with fake data until the real stage 
 
 | Role | Owner | Surface | Must not touch |
 | --- | --- | --- | --- |
-| A — Spine | | CLI, orchestration, repo, caching, the demo run | Scoring logic |
-| B — Ranking engine | | Gates, three axis predictors, portfolio step | Orchestration |
-| C — Generation | | Foundry, the shared H100, refold-and-score metrics | The critical path |
-| D — Proof and pitch | | Provided datasets, validation, report, pitch | Core pipeline code |
+| Ansarul — spine | | CLI, orchestration, repo, caching, the demo run | Scoring logic |
+| Rizve — ranking engine | | Gates, three axis predictors, portfolio step | Orchestration |
+| Ruhit — generation | | Foundry, the shared H100, refold-and-score metrics | The critical path |
+| Mahamoodoul — proof and pitch | | Provided datasets, validation, report, pitch | Core pipeline code |
 
 The contract between stages — settle this before anyone writes real code:
 
@@ -152,29 +152,22 @@ The contract between stages — settle this before anyone writes real code:
 Every stage reads a list of these and returns the list enriched. Any axis may be `null` while
 its predictor is still being built — that is the normal state before 14:00, not an error.
 
-Two roles are tempting to skip and must not be. D is not "the person who makes slides": they
-own the 40% category and the proof. A is not "the person who does glue": they own the thing
+Two roles are tempting to skip and must not be. Mahamoodoul is not "the person who makes slides": they
+own the 40% category and the proof. Ansarul is not "the person who does glue": they own the thing
 the judges will actually run.
 
 ---
 
 ## The day
 
-```
-10:00  12:00                    16:00        18:00
-  │      ┊                        ┊            │
-  ├──────┊────────────────────────┊────────────┤
-  │      ┊                        ┊            │
-A │ schema ─ stubbed e2e ─ integrate ─ FREEZE ─ rehearse ─ SUBMIT
-C │ foundry ─ datasets ─ baseline ─ opt batch ─ de novo ─ final
-B │ gates ───── three axis predictors ──────── pick the four
-D │ datasets ── ground truth ── enrichment result ── report + deck
-       ┊                        ┊
-   stubbed                   code
-   end to end                freeze
-```
+| Lane | 10:00 → **12:00** | 12:00 → **16:00** | 16:00 → 18:00 |
+| --- | --- | --- | --- |
+| **Ansarul** · spine | schema frozen, stubbed end to end | integrate for real | **freeze**, rehearse, submit |
+| **Ruhit** · generation | Foundry up, datasets out, baseline run | optimisation batch, de novo batch | final batch scored |
+| **Rizve** · ranking | entry gates + expression screen | three axis predictors | pick the four |
+| **Mahamoodoul** · proof | datasets tidied, split designed | enrichment result | report, dossiers, deck |
 
-The two dashed lines are the only deadlines that cannot move.
+The two column boundaries are the only deadlines that cannot move.
 
 **12:00 — stubbed end to end.** Dummy data flowing through every stage, start to finish. Not
 working, not accurate, just connected. Four developers who skip this and integrate at 16:00
@@ -200,12 +193,12 @@ gates, or the pitch.
 
 # Task lists by person
 
-## Dev A — the spine
+## Ansarul — the spine
 
 You own the thing the judges type a command into. Success metric: an unseen target runs
 clean, offline, in under ten minutes.
 
-- [ ] Agree the design-record schema with B, C and D — 20 minutes, then it is frozen
+- [ ] Agree the design-record schema with Rizve, Ruhit and Mahamoodoul — 20 minutes, then it is frozen
 - [ ] `fourwells run --target <uniprot|fasta|pdb> --budget 4 --out results/` as the single entry point
 - [ ] Target resolver: UniProt ID, raw sequence or structure file, plus an optional reference
       antibody to beat. HER2 and trastuzumab are default arguments, never hard-coded
@@ -215,12 +208,12 @@ clean, offline, in under ten minutes.
       the most important deadline of the day
 - [ ] Pinned `requirements.txt`, fixed seeds everywhere, `--seed` flag
 - [ ] `make demo` that runs a bundled example end to end with no arguments
-- [ ] Rehearse the blind run on two targets picked by Dev D that you have not seen
+- [ ] Rehearse the blind run on two targets picked by Mahamoodoul that you have not seen
 
 Two things to resist. Do not let the pipeline grow a stage that only works on your laptop.
 And do not refactor after 16:00 — freeze and make the demo bulletproof.
 
-## Dev B — the ranking engine
+## Rizve — the ranking engine
 
 You own what decides which four designs go to the lab. Build it to predict the three axes the
 lab actually measures — not generic developability metrics, and not affinity alone.
@@ -232,7 +225,7 @@ reason. Then add the expression screen, because a design that does not express s
 on all three axes.
 
 - [ ] `abguard` wrapper returning a named reason per rejection; report the reason
-      distribution, which tells Dev C whether generation is drifting
+      distribution, which tells Ruhit whether generation is drifting
 - [ ] Expression pre-screen: Aggrescan 3D, SoluProt, NetSolP, ProteinMPNN soluble weights —
       [the brief](brief.md#submission-rules) names these as what lifted Adaptyv's earlier rounds
 - [ ] Our own copy of the cheap checks so we fail fast before calling anything hosted: length,
@@ -258,7 +251,7 @@ number interpretable.
       structure: framework germline reversion count, hydrophobic patch area, net charge and pI
       distance from 7, disulfide integrity, loop length relative to germline, packing quality
       from the refolded structure. JapanFold's AF2-IG is antibody-specific and already paid
-      for — worth a look if Dev C has it working.
+      for — worth a look if Ruhit has it working.
 - [ ] **Calibrate the structure-confidence cutoff on the 454 true negatives**, not on a
       remembered threshold. 21 of them score ipTM ≥ 0.7 while being measured not to bind.
 
@@ -282,7 +275,7 @@ trastuzumab on all three axes.
 That last bullet is literally what "clear reasoning behind the molecules chosen" means. Write
 the reason strings as if a judge will read one aloud, because one will.
 
-## Dev C — generation and compute
+## Ruhit — generation and compute
 
 You own candidate supply and the shared box. Setup is in the [README](../README.md); model
 inventory is in [brief.md](brief.md#models). The good news: no CUDA wrangling. Foundry runs on
@@ -295,8 +288,8 @@ your own folder on the shared home.
 - [ ] **By 10:30** — on the box, keys loaded, one trivial hosted job returned through
       `forge.py`. If access is blocked, find an Apheris mentor at once; Egor Marin and Leonardo
       Castorina are both here and both are judges
-- [ ] **By 11:00** — provided datasets unpacked and handed to Dev B. The 524K variant set and
-      the 454 true negatives are what Dev B is blocked on, so these come before anything you
+- [ ] **By 11:00** — provided datasets unpacked and handed to Rizve. The 524K variant set and
+      the 454 true negatives are what Rizve is blocked on, so these come before anything you
       generate
 - [ ] **By 11:30** — trastuzumab itself run through the full Design → Refold → Score path as
       our baseline. Everything we later claim is relative to that row
@@ -304,19 +297,19 @@ your own folder on the shared home.
       substantial diversification, so generate boldly rather than conservatively
 - [ ] **By 14:30** — de novo batch, epitope-conditioned on HER2 domain IV using trastuzumab
       contact residues as hotspots. A de novo design that binds elsewhere cannot be S-tier
-- [ ] **By 16:00** — final batch scored, metrics exported into our schema, handed to Dev B.
+- [ ] **By 16:00** — final batch scored, metrics exported into our schema, handed to Rizve.
       Then stop generating and help rehearse
 
 Four rules:
 
 1. **Refold is the signal, not the design confidence.** A folding model given only the sequence
    must recover the designed complex. A design whose refold diverges from its intended complex
-   is a bad bet however good its design score looked. Export that agreement explicitly — Dev B
+   is a bad bet however good its design score looked. Export that agreement explicitly — Rizve
    needs it as a feature.
 2. **Carry the trastuzumab baseline through every batch.** Without it no score means anything.
 3. **Commit results to `results/` and run ids to `nebius-runs/` as you go.** The VM dies
    Saturday night, and a number we cannot trace to a run is a number we cannot defend on stage.
-4. **Diversity beats volume.** Dev B's gates will cut most of it, and the portfolio step needs
+4. **Diversity beats volume.** Rizve's gates will cut most of it, and the portfolio step needs
    genuinely distinct hypotheses. Thousands of near-duplicates of one parent are worth less
    than forty spread across four ideas.
 
@@ -324,31 +317,31 @@ If Foundry access fails entirely, fall back to CDR point-mutation sampling on tr
 any hosted folding model, and the pitch says we built the ranking layer generation-agnostic —
 which is true, and a better story than a broken dependency.
 
-## Dev D — proof and pitch
+## Mahamoodoul — proof and pitch
 
 You own the largest scoring category and the only artefact the judges are guaranteed to see.
 This is the highest-leverage seat on the team, not the support role.
 
 ### Morning (10:00–12:00)
 
-- [ ] Unpack the provided datasets as soon as Dev C has them and read
+- [ ] Unpack the provided datasets as soon as Ruhit has them and read
       [brief.md](brief.md#data-we-were-given) properly. The 524K labelled variants, the 190
       SPR-measured designs and the 454 true negatives are the three that matter
-- [ ] Get each into a tidy CSV and hand them to Dev B as fixtures — Dev B is blocked on these
+- [ ] Get each into a tidy CSV and hand them to Rizve as fixtures — Rizve is blocked on these
 - [ ] Design the held-out split yourself — split by mutation count, not at random, so the test
       set is not a near-neighbour of training. Getting this wrong invalidates the headline number
-- [ ] Pick two targets for the blind rehearsal; do not tell Dev A what they are until 16:00
+- [ ] Pick two targets for the blind rehearsal; do not tell Ansarul what they are until 16:00
 
 ### Midday (12:00–14:00)
 
-- [ ] Epitope evidence: which HER2 domain IV residues trastuzumab actually contacts, so Dev B's
-      epitope predictor and Dev C's hotspot conditioning use the same list. AMASS is paid for
+- [ ] Epitope evidence: which HER2 domain IV residues trastuzumab actually contacts, so Rizve's
+      epitope predictor and Ruhit's hotspot conditioning use the same list. AMASS is paid for
       and the mentors will recognise it
 - [ ] Cache everything to disk
 
 ### Afternoon (14:00–17:00)
 
-- [ ] Run Dev B's ranker over the held-out SPR designs and the true negatives, and produce the
+- [ ] Run Rizve's ranker over the held-out SPR designs and the true negatives, and produce the
       enrichment result — see below, this is the centrepiece
 - [ ] Report renderer: ranked table, per-design dossier, reasons, kill criteria. Markdown plus
       a single self-contained HTML file
@@ -473,14 +466,14 @@ guaranteed four. A good pitch is not separate from the lab result — it buys mo
 
 | Risk | Owner | Kill switch | Decide by |
 | --- | --- | --- | --- |
-| Foundry access blocked or slow | C | CDR point-mutation sampling on trastuzumab; escalate to an Apheris mentor at once | 10:30 |
-| A dependency will not install | B | Simplest working fallback; never block on a package | 30 min after first attempt |
-| Datasets messier than expected | D | Binary binder/non-binder labels are enough for an enrichment story | 12:00 |
-| Enrichment comes out flat | D | Report the null result honestly; pivot slide 5 to what it taught us | 16:00 |
-| Pipeline not end-to-end by midday | A | Cut generation to point-mutation sampling; the selection layer is the product | 12:00 |
+| Foundry access blocked or slow | Ruhit | CDR point-mutation sampling on trastuzumab; escalate to an Apheris mentor at once | 10:30 |
+| A dependency will not install | Rizve | Simplest working fallback; never block on a package | 30 min after first attempt |
+| Datasets messier than expected | Mahamoodoul | Binary binder/non-binder labels are enough for an enrichment story | 12:00 |
+| Enrichment comes out flat | Mahamoodoul | Report the null result honestly; pivot slide 5 to what it taught us | 16:00 |
+| Pipeline not end-to-end by midday | Ansarul | Cut generation to point-mutation sampling; the selection layer is the product | 12:00 |
 | Chasing affinity alone, ignoring stability | all | Anyone may call it; S-tier needs all three | always |
-| A submitted design fails an entry gate | A | Run the gate checker over the final four twice, by two different people | 16:00 |
-| VM or venue network dies | A | Everything cached and committed as we go, slides exported to PDF | 17:00 |
+| A submitted design fails an entry gate | Ansarul | Run the gate checker over the final four twice, by two different people | 16:00 |
+| VM or venue network dies | Ansarul | Everything cached and committed as we go, slides exported to PDF | 17:00 |
 
 The two failure modes most likely to actually sink us:
 
