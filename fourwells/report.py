@@ -24,7 +24,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from .schema import AXES, DesignRecord
+from .schema import AXES, DesignRecord, distance_is_capped
 
 BASELINE = 0.5  # every axis is scored relative to trastuzumab at 0.5
 
@@ -65,7 +65,7 @@ def novelty_line(rec: DesignRecord) -> str:
         return "novelty: not recorded"
     v = n.get("verdict", "?")
     sub = n.get("min_substitutions_from_any_provided")
-    cap = " (capped)" if n.get("min_substitutions_is_capped_at_2") else ""
+    cap = " (capped)" if distance_is_capped(n) else ""
     src = n.get("source", "generation export")
     return f"novelty: {v} — ≥{sub}{cap} substitutions from any of the 525,063 provided · {src}"
 

@@ -39,7 +39,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from .schema import DesignRecord
+from .schema import DesignRecord, distance_is_capped
 
 LINKER = "GGGGSGGGGSGGGGS"
 
@@ -71,7 +71,7 @@ def novelty_verdict(nov: dict[str, Any]) -> tuple[bool | None, str]:
     the organisers throw out.
     """
     dist = nov.get("min_substitutions_from_any_provided")
-    capped = nov.get("min_substitutions_is_capped_at_2")
+    capped = distance_is_capped(nov)
 
     if dist is None:
         return None, (
@@ -86,11 +86,15 @@ def novelty_verdict(nov: dict[str, Any]) -> tuple[bool | None, str]:
             # failure. Flagged rather than rejected; the portfolio step breaks
             # ties against it.
             return True, (
-                f"{'2 or more' if capped else dist} substitutions from the nearest "
+                f"{dist}{' or more' if capped else ''} substitutions from the nearest "
                 "provided sequence — passes the filter as measured, but the project "
                 "wording reads as 'more than 2'. Borderline: still unsettled"
             )
-        return True, f"{dist} substitutions from the nearest provided sequence"
+        return True, (
+            f"{dist} or more substitutions from the nearest provided sequence"
+            if capped
+            else f"{dist} substitutions from the nearest provided sequence"
+        )
     return False, (
         f"only {dist} substitution(s) from the nearest provided sequence, "
         f"needs >= {MIN_DISTANCE_FROM_PROVIDED}"
