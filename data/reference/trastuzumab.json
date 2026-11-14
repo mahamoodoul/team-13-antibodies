@@ -1,7 +1,9 @@
 {
   "_what": "Trastuzumab baseline + HER2 epitope. Every score in this challenge is relative to trastuzumab, and the <70% CDRH3 identity gate is computed against cdr_h3 below.",
 
-  "_verify_first": "The provided dataset (524k CDRH3 variants) contains the parent trastuzumab row. That row is AUTHORITATIVE for this challenge — confirm every field here against it before trusting these values, and fix this file if they disagree. Numbering scheme matters: cdr_h3 below is Kabat. If abguard or the dataset uses IMGT or Chothia, the CDRH3 boundaries shift and the identity calculation changes.",
+  "_verified": "Checked against the provided data on the VM, 14 Nov 2026. The parent row is NOT in the 524k FACS table (that table holds variants only) — it is in trastuzumab_her2_spr_all_768.csv, where cdrh3 == WGGDGFYAMD appears 8 times as the reference antibody. vh below matches that row exactly. vl was filled in from it. Rebuild with ruhit/gen/scripts/build_fixtures.py, which writes ~/data/tidy/trastuzumab_parent.json.",
+
+  "_numbering_warning": "cdrs_kabat below is Kabat (11-residue cdr_h3). The provided tables and the challenge novelty filter use a 10-residue CDRH3, WGGDGFYAMD. Compute the <70% identity gate on the 10-mer — see cdr_h3_gate.",
 
   "vh": {
     "sequence": "EVQLVESGGGLVQPGGSLRLSCAASGFNIKDTYIHWVRQAPGKGLEWVARIYPTNGYTRYADSVKGRFTISADTSKNTAYLQMNSLRAEDTAVYYCSRWGGDGFYAMDYWGQGTLVTVSS",
@@ -14,9 +16,34 @@
   },
 
   "vl": {
-    "sequence": null,
-    "verified": false,
-    "note": "NOT verified in this session — deliberately left null rather than written from memory, because a wrong VL silently corrupts length and identity checks. Take it from the provided dataset's parent row, or from DrugBank DB00072."
+    "sequence": "DIQMTQSPSSLSASVGDRVTITCRASQDVNTAVAWYQQKPGKAPKLLIYSASFLYSGVPSRFSGSRSGTDFTLTISSLQPEDFATYYCQQHYTTPPTFGQGTKVEIK",
+    "length": 107,
+    "verified": true,
+    "sources": [
+      "trastuzumab_her2_spr_all_768.csv, vl_sequence of the 8 rows with cdrh3 == WGGDGFYAMD",
+      "identical in all 524,346 rows of tz_her2_facs_3classes_524346.csv (the light chain was never varied)"
+    ]
+  },
+
+  "length_budget": {
+    "vh_plus_vl": 227,
+    "abguard_limit": 250,
+    "headroom_aa": 23,
+    "_use": "An scFv design that keeps both domains at parent length has 23 aa of slack before abguard rejects it on length. A linker counts against this."
+  },
+
+  "measured_baseline": {
+    "binding_kd_nM": [0.02851802, 0.0378713, 0.07916459, 0.123, 0.146, 0.152, 0.165, 0.178],
+    "n": 8,
+    "median_kd_nM": 0.134,
+    "source": "trastuzumab_her2_spr_all_768.csv, the 8 reference rows",
+    "_use": "This is the binding number a design must beat to score on that axis. It is sub-nanomolar, which is why the plan treats affinity as the hard axis and thermostability as the beatable one."
+  },
+
+  "cysteines": {
+    "vh": 2,
+    "vl": 2,
+    "_use": "Both domains carry exactly their canonical intra-domain pair. A design with an odd count in either domain has an unpaired cysteine and abguard rejects it."
   },
 
   "cdrs_kabat": {
@@ -25,7 +52,23 @@
     "cdr_h3": "WGGDGFYAMDY",
     "verified": true,
     "source": "US app 20190194349 (CDR1/2/3 given explicitly with trastuzumab framework); cdr_h3 independently confirmed inside the vh sequence above as ...YYCSR-WGGDGFYAMDY-WGQGT...",
-    "note": "cdr_h3 is 11 aa. At the <70% identity ceiling, at least 4 of 11 positions must differ for an optimisation-track design to pass abguard. Conservative 1-2 point mutants WILL be rejected."
+    "note": "cdr_h3 here is the 11-aa Kabat call. The challenge does NOT use it — see cdr_h3_gate below."
+  },
+
+  "cdr_h3_gate": {
+    "sequence": "WGGDGFYAMD",
+    "length": 10,
+    "verified": true,
+    "source": "The cdrh3 column of both provided tables, and Data/12-her2/her2_cdrh3.yaml, which designs heavy-chain B residues 99-108 — ten positions.",
+    "_use": "Compute every identity and novelty check against this 10-mer, because it is what the provided tables and abguard are defined against.",
+    "optimisation_track_rules": {
+      "max_identity_to_trastuzumab": 0.70,
+      "min_positions_changed": 3,
+      "min_differences_from_every_provided_sequence": 2,
+      "provided_sequence_count": 525063,
+      "_note": "At most 70% identity over 10 positions means at least 3 must differ. The design must ALSO differ at 2+ positions from every one of the 525,063 provided CDRH3s, so a design that merely rediscovers a screened variant is rejected. Conservative 1-2 point mutants WILL be rejected."
+    },
+    "reference_set": "~/data/tidy/provided_cdrh3_universe.txt on the VM — all 525,063 unique provided CDRH3s, one per line, for the novelty check."
   },
 
   "her2": {
