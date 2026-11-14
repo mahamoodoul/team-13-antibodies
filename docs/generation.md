@@ -44,7 +44,7 @@ OUT=runs/optA WEIGHT=her2-novel-2026-11-09 SEED=1 MODEL=boltz2 MAXFOLD=25 \
 
 100 designs took 11.5 minutes with `--compile true`, against the documented ~30 s per design.
 
-## Six things we measured that changed what we did
+## Seven things we measured that changed what we did
 
 ### 1. The challenge filter belongs in front of the GPU, not after it
 
@@ -228,6 +228,88 @@ linker pushes it over; the gate measures the whole construct, which is the stric
 so nothing we would actually submit depends on which reading is right. Only `denovo` does, and
 `denovo` is already out on identity.
 
+### 7. Run the baseline through the epitope axis and it scores 0.134
+
+§3's rule was "carry the trastuzumab baseline through every batch, because without it no score
+means anything." We had been applying it to folding confidence. Applied to the epitope axis it
+finds a 3.7x error, and the only reason it was invisible is that the parent had never been
+measured on this axis at all — `baseline.json` carried refold confidence and no contacts.
+
+Measured now, the same way as every design, against the annotated 1N8Z/8PWH epitope:
+
+| | contacts | in epitope | precision | recall | regions touched |
+| --- | --- | --- | --- | --- | --- |
+| Boltz-2 | 19 | 14 | 0.74 | **0.70** | 557–561 ✓ · 570–573 ✓ · 593–603 ✓ |
+| Protenix v2 | 15 | 7 | 0.47 | **0.35** | 557–561 ✗ · 570–573 ✗ · 593–603 ✓ |
+
+**Protenix places trastuzumab off its own epitope**, missing two of the three crystallographic
+contact regions outright. And `export_batch.py` was handing the axis Protenix's contacts — on
+the §3 reasoning that Protenix is the model whose confidence we trust. That is true and it does
+not transfer: where a model puts two molecules and how well its ipTM separates binders are
+different questions. The spread Protenix gave across designs was its own placement error, so
+ranking on it ranked designs by how far Protenix had drifted. The preference is now
+`boltz2 → of3ob → protenix-v2`, with this measurement as the stated reason.
+
+`scripts/epitope_control.py` reruns the whole control from committed data — no VM, no GPU.
+
+**Then the axis itself.** Scored from the model that passes the control, the structural path
+gives the parent **0.134**, against the 0.500 it gets on the prior path. The reference molecule
+fails its own axis. Two compounding causes, both of which punish a design for having been
+measured:
+
+1. **Ten of the thirty "annotated" residues cannot be contacted by any fold we run.**
+   `targets.py` takes all four `contact_regions`, including 581–590 — which is 8PWH-only,
+   lower-confidence, and *absent from the folded input*: the yaml splits HER2 into chains
+   C 489–580 and D 591–607 precisely because input validation rejects a numbering gap inside
+   one chain. So overlap is capped at 20/30 = 0.667 for every design and for trastuzumab.
+2. **The reference is overlap 1.0** — a molecule contacting all 30 residues, which does not
+   exist. `score = logistic(3.5 x (overlap - 1.0))`.
+
+| a design preserving the epitope exactly as well as the parent | scores |
+| --- | --- |
+| today — overlap /30, reference 1.0 | **0.134** |
+| drop the unreachable 581–590 — overlap /20, reference 1.0 | 0.259 |
+| and reference the parent's own measured overlap | **0.500** |
+
+0.500 is the right answer and it is the same number the parent gets on the prior path, which is
+what makes the two bases comparable. Today they are not: across the full pool the structural
+basis spans 0.029–0.148 while the prior basis spans 0.071–0.500, so **the structural ceiling
+sits below the prior mean.** Folding a design can only lower its rank. That is the real reason
+no fold set of mine ever reached the top four — I fixed *which* designs we folded at 12:43 and
+the fold budget still landed outside the shortlist, because the problem was never the
+selection. It was that measured evidence is scored on a scale that cannot compete with
+inferred evidence.
+
+The fix belongs in `score.py`, which is Rizve's. What generation owes it is the calibration
+point, and that is now committed: the parent's measured contacts, in both models, in
+`baseline.json` and `baseline-protenix-v2.json`.
+
+**And the axis does discriminate, once it is referenced properly.** It separates exactly where
+it should — by what the generator redesigned:
+
+| batch | n | median recall | sd | off-epitope |
+| --- | --- | --- | --- | --- |
+| `optA` CDRH3-only | 43 | 0.70 | 0.042 | 0 / 43 |
+| `optB` CDRH3-only | 31 | 0.70 | 0.022 | 0 / 31 |
+| `multicdr` three heavy CDRs | 16 | **0.45** | 0.150 | **3 / 16** |
+
+CDRH3-only designs sit at the parent's own value with almost no spread: epitope preservation
+really is close to free when one loop moves, which the plan argued from first principles and
+this measures. Move CDRH1 and CDRH2 as well and it stops being free — `multicdr_20` contacts
+the epitope not at all, with 5 contacts total.
+
+So the axis is not a tie-break among trastuzumab variants. It is the check that catches a
+design binding somewhere else, and it fires only where it should. With the parent as the
+reference, `multicdr_20` scores 0.029 and an optB design scores 0.500 — which is the axis
+working, not the axis being noisy.
+
+**This is the price of the diversity slot, as a number.** §6 left `multicdr` as the only
+uncorrelated hypothesis we have. It pays for that here: 3 of its 16 refolded designs do not
+compete with trastuzumab for its epitope and can never be S-tier. The portfolio step should
+take that trade knowingly — and it should pick from the 13 that do compete, which is a thing
+it can only do if the axis is referenced to the parent rather than to a molecule that
+contacts every residue.
+
 ## Portfolio note
 
 All four current picks come from `optB` and are CDRH3-only redesigns, so they share one
@@ -253,6 +335,9 @@ longer supplying two alternatives, it is supplying one.
 - **`abguard` was never installed on the VM.** Every novelty and identity number here is
   computed against our reading of the rules, not against the authority. The reading is
   conservative where it is ambiguous.
+- **The epitope axis is mis-referenced, and the fix is in `score.py`.** §7 measures it: the
+  parent scores 0.134 on the structural path against 0.500 on the prior path, so folding a
+  design lowers its rank. The calibration point is committed; the two-line change is Rizve's.
 - **The identity threshold is ambiguous.** `docs/brief.md` says "<70% CDRH3 identity", under
   which 7/10 matches fails and 4 of 10 positions must differ. The Apheris tutorial says "at most
   70% ... at least 3 of 10 changed", under which 3 suffice. We require 4, which satisfies both

@@ -507,8 +507,28 @@ def main():
         ec = refold_contacts(run, example_id)
         if ec:
             row["epitope_contacts_by_model"] = ec
-            # One consumable list: prefer the model whose confidence we trust.
-            pref = next((m for m in ("protenix-v2", "of3ob", "boltz2") if m in ec), sorted(ec)[0])
+            # One consumable list, from the model that PASSES THE EPITOPE CONTROL.
+            #
+            # This order used to be ("protenix-v2", "of3ob", "boltz2") on the
+            # grounds that Protenix is the model whose confidence we trust --
+            # true, and documented in generation.md section 3, but it is a
+            # statement about ipTM and it does not transfer to where a model
+            # puts the two molecules. Those are different questions and they
+            # have different answers.
+            #
+            # Measured on trastuzumab's own refold, whose epitope is known from
+            # 1N8Z, scored against the annotated contact regions:
+            #
+            #   boltz2       precision 0.74  recall 0.70  all three regions
+            #   protenix-v2  precision 0.47  recall 0.35  misses 557-561 AND
+            #                                            570-573 entirely
+            #
+            # So the axis was reading contacts from the model that cannot find
+            # the epitope on the one molecule where the answer is known, and
+            # the spread Protenix gave across designs was its own placement
+            # error. Rerun the control any time with
+            # scripts/epitope_control.py -- it reads committed data only.
+            pref = next((m for m in ("boltz2", "of3ob", "protenix-v2") if m in ec), sorted(ec)[0])
             row["epitope_contacts"] = ec[pref]["contacts"]
             row["epitope_contacts_source"] = pref
         rows.append(row)
