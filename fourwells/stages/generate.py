@@ -292,15 +292,41 @@ def _baseline(ref: ReferenceAntibody, batch_dir: Path) -> DesignRecord | None:
         cdrh3_identity_to_tras=1.0,
         cdrh3_mutations_from_tras=0,
     )
-    path = batch_dir / "baseline.json"
-    if path.exists():
-        blob = json.loads(path.read_text())
-        if blob.get("refold"):
-            rec.axis_evidence["refold"] = blob["refold"]
-            rec.note("generate", "baseline refolded through the identical path")
+    # One baseline per folding model. Confidence scores are NOT comparable across
+    # models: the same complex, same template, same seed scores ipTM 0.960 under
+    # Boltz-2 and 0.676 under Protenix v2. Boltz-2 puts this known binder 0.04
+    # from the ceiling, so nothing can beat it and the metric ranks nothing --
+    # across 25 refolded designs none exceeded it. Protenix leaves room in both
+    # directions. So a design is only ever "above baseline" with respect to a
+    # named model, and every consumer needs the whole set.
+    baselines: dict[str, dict] = {}
+    for path in sorted(batch_dir.glob("baseline*.json")):
+        try:
+            blob = json.loads(path.read_text())
+        except (OSError, ValueError):
+            continue
+        refold = blob.get("refold") or {}
+        model = refold.get("model") or path.stem.replace("baseline-", "") or "unknown"
+        if refold:
+            baselines[model] = refold
         for k in ("measured_kd_nM", "measured_kd_median_nM"):
             if blob.get(k) is not None:
                 rec.axis_evidence.setdefault("measured", {})[k] = blob[k]
+
+    if baselines:
+        rec.axis_evidence["refold_by_model"] = baselines
+        # Keep the single-model key for anything already reading it.
+        primary = "boltz2" if "boltz2" in baselines else sorted(baselines)[0]
+        rec.axis_evidence["refold"] = baselines[primary]
+        bits = ", ".join(
+            f"{m} iptm={v.get('iptm')}" for m, v in sorted(baselines.items())
+        )
+        rec.note("generate", f"baseline refolded through the identical path: {bits}")
+        if len(baselines) > 1:
+            rec.note(
+                "generate",
+                "compare a design only against the baseline for its own folding model",
+            )
     else:
         rec.note(
             "generate",
