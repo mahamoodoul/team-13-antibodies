@@ -79,10 +79,13 @@ results/<run-id>/
   cache/            content-addressed by input hash                       cache.py
 ```
 
-`write_outputs` currently writes the two JSONL files flat into `--out`. The four gaps
-are small and all in the spine's lane: a run-id subdirectory so runs stop overwriting
-each other, `config.json` for reproducibility, and the report renderer (proof lane owns
-the renderer's content, not its plumbing).
+[`write_outputs`](fourwells/runner.py#L107) currently writes the two JSONL files flat
+into `--out`. The remaining gaps are small and all in the spine's lane: a run-id
+subdirectory so successive runs stop overwriting each other, `config.json` for
+reproducibility, and the report renderer's plumbing (the proof lane owns its *content*,
+not where it is written).
+
+Everything upstream of the report is now real — see section 7.
 
 Rejected candidates stay in `designs.jsonl` with their failure reasons. A pipeline that
 silently drops its failures cannot be audited, and "what did you throw away?" is a
@@ -94,9 +97,10 @@ content rather than on time.
 
 ## 5. The ranking, which is the actual product
 
-The objective is **not** a sorted list of predicted affinities. A design is S-tier only
-if it beats trastuzumab on binding, epitope competition *and* thermostability, and teams
-rank by S-tier count. So what we maximise is the expected number of designs that win on
+The objective is **not** a sorted list of predicted affinities. Tiers are counted per
+design against the *measured* trastuzumab baseline: **S** beats all three axes, **A**
+two, **B** one. Teams rank by S count first, then A, then B — two S-tier designs beat ten
+B-tier ones. So what we maximise first is the expected number of designs that win on
 three axes at once:
 
 ```
@@ -107,6 +111,13 @@ Two things that objective rewards and a weighted sum destroys: designs whose axe
 *jointly* good — excellent on two and hopeless on the third scores zero — and four
 designs whose **failure modes are uncorrelated**. Four variants of one parent is one bet
 placed four times.
+
+The A-then-B tiebreak has a consequence worth building in, not just noting. Among designs
+with little chance of S, prefer the ones most likely to take **two** axes over the ones
+with a single spectacular axis — a lexicographic tiebreak on expected tier, not a second
+sort by affinity. Concretely, the fourth slot should rarely go to the next-highest
+`joint`; it should go to whichever design most changes the *distribution* of outcomes
+across our four.
 
 Three constraints on how evidence may be used, all three measured today, all three in
 [`proof/`](proof/):
@@ -136,9 +147,18 @@ the number.
 the track is decided for us by identity to known antibodies. So gates run *before*
 scoring, and a design that fails one never enters the ranking.
 
-Shared: VHH / scFv / Fab, ≤250 aa total, no unpaired cysteines, immunum confidence ≥0.1.
-Optimisation adds <70% CDRH3 identity to trastuzumab and >2 point mutations from any
-provided antibody.
+Shared, every design: format is VHH, scFv or Fab · ≤250 aa total (VH + VL combined) · no
+unpaired cysteines · immunum numbering confidence ≥0.1.
+
+| Track | Entry condition | Extra requirement |
+| --- | --- | --- |
+| De novo | <70% identity to **any known antibody** | ≥2 CDRH3 mutations from trastuzumab |
+| Optimisation | everything else | <70% CDRH3 identity to trastuzumab **and** >2 point mutations from any provided antibody |
+
+We do not choose the track — identity to known antibodies chooses it for us. So the useful
+question is never "how do we split four between tracks", it is how far from trastuzumab
+each design sits, because that distance is what assigns it. A design near the 70% line
+could land either side, and we need to know which before we rank it.
 
 The counterintuitive one, worth stating because it inverts the usual instinct: the <70%
 identity rule is a **floor on how much we must change**, not a ceiling. A conservative
@@ -152,34 +172,55 @@ nothing on all three axes, so the expression screen is not polish.
 ## 7. Build order
 
 Each phase ends with something demonstrable. Stop at any phase boundary and we still have
-a submission.
+a submission. Status as of this revision:
 
-**Phase 1 — a run that completes.** End to end on stub predictors. Standing already:
-`fourwells run` produces `designs.jsonl` and `selected.jsonl`, and
-[`examples/example-run/`](examples/example-run/) holds a committed run. Remaining: the
-four gaps in section 4. This is the safety net — if every model falls over, the command
-still produces a ranked list we can defend.
+**Phase 1 — a run that completes. ✅** `fourwells run` goes end to end and
+[`examples/example-run/`](examples/example-run/) holds a committed run. This is the
+safety net: if every model falls over, the command still produces a ranked list we can
+defend.
 
-**Phase 2 — real gates, real candidates.** `abguard` wired in with exact failure reasons;
-Foundry candidates replacing the stubs. After this the pipeline is honest about
-eligibility, which is the part that cannot be hand-waved.
+**Phase 2 — real gates, real candidates. ✅** [`stages/gates.py`](fourwells/stages/gates.py)
+runs the real filters, with [`align.py`](fourwells/align.py) added because identity was
+previously only computed when two CDRH3 loops were the same length — an indel skipped the
+<70% check entirely, and RFD4 changes loop length routinely, so that was the common case
+rather than an edge one. [`stages/generate.py`](fourwells/stages/generate.py) replays
+committed Foundry batches with the baseline row on the same path.
 
-**Phase 3 — the three axes.** One predictor per axis, each returning a probability
-against the reference and a one-line reason a judge could read aloud. Constrained by
-section 5.
+**Phase 3 — the three axes. ✅** [`stages/score.py`](fourwells/stages/score.py) returns a
+probability per axis against the reference, with a one-line reason each.
+[`fit_binding.py`](fourwells/fit_binding.py) fits the binding axis on the FACS labels —
+and then rejects it on blind validation, which is the section 5 constraint arrived at
+independently from the data rather than imposed from this document.
+[`calibrate.py`](fourwells/calibrate.py) is wired into `score.py` via
+`confidence_policy`, and currently reports *uncalibrated* — so structure confidence is
+ignored by policy rather than trusted, which is the correct default and visible in the
+run output.
 
-**Phase 4 — portfolio and report.** The joint objective, diversity across failure modes,
-and the HTML dossier. This is the 40%, so it gets whatever time is left, and time is
-taken from phases 2 and 3 if needed.
+One wording bug to fix there before the demo: the rationale strings in
+[`score.py`](fourwells/stages/score.py#L32) and
+[`portfolio.py`](fourwells/stages/portfolio.py#L289) still say "the 454 measured
+non-binders". Those pairs are **shuffled and computational**, not SPR measurements — see
+[`proof/audit_datasets.py`](proof/audit_datasets.py). Printing "measured" to a judge is
+exactly the predicted-versus-measured confusion this system exists to avoid, and it is
+in our own output. Rizve's files, so flagged rather than edited here.
+
+**Phase 4 — portfolio and report. ◐** [`stages/portfolio.py`](fourwells/stages/portfolio.py)
+implements the joint objective; the report renderer and the section 4 output gaps are what
+is left. This is the 40%, so it gets whatever time remains, and time is taken from
+elsewhere if needed.
 
 ## 8. Done
 
-- [ ] One documented command runs end to end, offline, from a clean clone
-- [ ] Same seed, same inputs → identical `selected.jsonl`
-- [ ] Every design traces to its source, config and git SHA
+Verified by running it, not by reading the code:
+
+- [x] One documented command runs end to end, offline — `fourwells run --out DIR`
+- [x] Same seed, same inputs → identical `selected.jsonl` *and* `designs.jsonl`
+- [x] Three axes reported separately, each with a readable reason
+- [x] Stub-sourced records are flagged as a warning in the run output, not hidden
+- [ ] Every design traces to its source, config and git SHA — needs `config.json`
 - [ ] `abguard` verdicts recorded with exact failure reasons; failures retained
-- [ ] Three axes reported separately, each with provenance
-- [ ] Predicted and measured values are never shown in the same column without a label
+- [ ] Predicted and measured values never shown together without a label — **currently
+      violated**: the rationale strings call the shuffled pairs "measured"
 - [ ] Ranked ≤20 exported, with four flagged as the lab slots and a reason for each
 - [ ] One case the ranker gets **wrong**, named, with the reason
 
