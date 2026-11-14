@@ -1,19 +1,42 @@
-"""Portfolio selection — OWNER: Rizve.
+"""Portfolio selection — OWNER: Rizve. Layer 3, and the 40%.
 
-STUB. Picks the first `budget` gate-passing designs in a deterministic order so
-the pipeline produces a complete result today. That ordering carries no
-scientific meaning and every record it picks says so in its rationale.
+Four of our designs are guaranteed a well. This file decides which four, and
+the reasoning it writes into each record is the thing a judge will ask about.
 
-What belongs here: four slots, four *distinct hypotheses*. S-tier requires all
-three axes at once, so the real objective is the expected count of designs that
-win on three axes simultaneously — not a top-N sort on predicted affinity, and
-never four variants of one parent. Cluster first, then take the best of each
-cluster, then justify all four.
+THE OBJECTIVE IS NOT A RANKED LIST. A design counts as S-tier only if it beats
+trastuzumab on binding, epitope competition *and* thermostability, and the team
+with the most S-tier designs wins. So what we maximise is the expected number
+of designs that win on three axes at once:
+
+    joint = P(binding) * P(epitope) * P(stability)
+
+A product, not a weighted sum, and the difference is the entire point. A design
+at (0.95, 0.95, 0.05) is excellent on two axes and hopeless on the third: a
+weighted sum ranks it near the top, the product puts it near the bottom, and
+the product is right, because that design cannot be S-tier. A weighted sum is
+how a team spends four wells on four molecules that each win one axis and
+collects nothing.
+
+THEN: ALLOCATE ACROSS CLUSTERS, NOT DOWN THE LIST. Four variants of one parent
+share a failure mode. If the parent is wrong — wrong loop, wrong binding mode,
+wrong framework — all four die together and we learn one thing from four wells.
+We cluster by parent, by CDRH3 and by predicted binding mode, then spend one
+slot per cluster. Four slots, four distinct hypotheses, four independent shots.
+That costs us some expected value on paper and buys uncorrelated failure, which
+is the right trade when the sample size is four.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
+
+from .. import features
+from ..align import identity
 from ..schema import AXES, DesignRecord
+
+# CDRH3 identity at or above this puts two designs in the same cluster: they
+# are variations on one loop hypothesis, not two.
+CLUSTER_IDENTITY = 0.80
 
 STUB_RATIONALE = (
     "STUB SELECTION — ordered by design_id among gate-passing records. "
@@ -22,11 +45,12 @@ STUB_RATIONALE = (
 
 
 def joint_score(rec: DesignRecord) -> float | None:
-    """Expected-S-tier proxy: a design is only as good as its weakest axis.
+    """Expected-S-tier probability. None while any axis is unscored.
 
-    A product (not a mean) because S-tier needs all three at once — a design
-    that is excellent on two axes and hopeless on the third is not a candidate.
-    Returns None while any axis is unscored.
+    Deliberately returns None rather than treating a missing axis as 0.5 or
+    dropping it from the product: a design scored on two axes is not
+    comparable to one scored on three, and quietly making it comparable is how
+    an unscored design wins a slot it did not earn.
     """
     vals = [rec.axes.get(a) for a in AXES]
     if any(v is None for v in vals):
@@ -37,26 +61,334 @@ def joint_score(rec: DesignRecord) -> float | None:
     return score
 
 
+def weakest_axis(rec: DesignRecord) -> tuple[str, float] | None:
+    vals = [(a, rec.axes.get(a)) for a in AXES if rec.axes.get(a) is not None]
+    return min(vals, key=lambda kv: kv[1]) if vals else None
+
+
+# ---------------------------------------------------------------------------
+# Clustering
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class Cluster:
+    cid: str
+    members: list[DesignRecord] = field(default_factory=list)
+    hypothesis: str = ""
+
+    @property
+    def best(self) -> DesignRecord | None:
+        scored = [m for m in self.members if m.joint_score is not None]
+        if scored:
+            return max(scored, key=lambda r: (r.joint_score, r.design_id))
+        return min(self.members, key=lambda r: r.design_id) if self.members else None
+
+    @property
+    def best_score(self) -> float:
+        b = self.best
+        return b.joint_score if b and b.joint_score is not None else -1.0
+
+
+def _binding_mode(rec: DesignRecord) -> str:
+    """Coarse binding-mode key: track, format, and whether the epitope axis is
+    evidenced or merely inferred. Two designs that differ here fail for
+    different reasons, which is exactly what we are trying to spread across."""
+    ev = (rec.axis_evidence or {}).get("epitope") or {}
+    return f"{rec.track or 'unassigned'}/{rec.format or '?'}/{ev.get('basis', 'none')}"
+
+
+def cluster(records: list[DesignRecord]) -> list[Cluster]:
+    """Single-linkage on CDRH3 identity, partitioned first by parent and mode.
+
+    Single-linkage because the question is "does this design share a failure
+    mode with one already in the basket", and sharing it with any member is
+    enough. n is small after gating, so the O(n^2) comparison is free.
+    """
+    buckets: dict[str, list[DesignRecord]] = {}
+    for rec in records:
+        key = f"{rec.parent or 'none'}|{_binding_mode(rec)}"
+        buckets.setdefault(key, []).append(rec)
+
+    clusters: list[Cluster] = []
+    for key, group in sorted(buckets.items()):
+        loops: list[list[DesignRecord]] = []
+        for rec in sorted(group, key=lambda r: r.design_id):
+            loop = features.clean(rec.cdrh3)
+            placed = False
+            for bucket in loops:
+                if any(
+                    identity(loop, features.clean(m.cdrh3)) >= CLUSTER_IDENTITY
+                    for m in bucket
+                ):
+                    bucket.append(rec)
+                    placed = True
+                    break
+            if not placed:
+                loops.append([rec])
+        for bucket in loops:
+            cid = f"c{len(clusters) + 1}"
+            rep = bucket[0]
+            parent = rep.parent or "unknown parent"
+            clusters.append(
+                Cluster(
+                    cid=cid,
+                    members=bucket,
+                    hypothesis=(
+                        f"{rep.track or 'unassigned'} track, {parent} scaffold, "
+                        f"CDRH3 family {features.clean(rep.cdrh3)[:14] or '?'} "
+                        f"({len(bucket)} design{'s' if len(bucket) != 1 else ''})"
+                    ),
+                )
+            )
+    for c in clusters:
+        for m in c.members:
+            m.cluster = c.cid
+    return clusters
+
+
+# ---------------------------------------------------------------------------
+# Allocation
+# ---------------------------------------------------------------------------
+
+
+def allocate(clusters: list[Cluster], budget: int) -> tuple[list[DesignRecord], list[str]]:
+    """One slot per cluster, best cluster first, then round-robin for leftovers.
+
+    Returns (picks, notes). The notes say out loud when we had to put two
+    designs in one cluster, because that is a real reduction in how many
+    independent hypotheses we are testing and it should never be invisible.
+    """
+    notes: list[str] = []
+    ordered = sorted(clusters, key=lambda c: (-c.best_score, c.cid))
+    picks: list[DesignRecord] = []
+    taken: dict[str, int] = {}
+
+    # Pass 1: the best design from each distinct cluster.
+    for c in ordered:
+        if len(picks) >= budget:
+            break
+        b = c.best
+        if b is not None:
+            picks.append(b)
+            taken[c.cid] = 1
+
+    if len(picks) < budget:
+        if len(ordered) < budget:
+            notes.append(
+                f"only {len(ordered)} distinct cluster(s) survived gating for {budget} "
+                "slots — the shortlist tests fewer independent hypotheses than it has "
+                "wells, so some picks share a failure mode. Ask Ruhit for more diverse "
+                "candidates before accepting this."
+            )
+        # Pass 2: deepen the strongest clusters, in score order.
+        pool = []
+        for c in ordered:
+            for m in sorted(
+                c.members,
+                key=lambda r: (-(r.joint_score if r.joint_score is not None else -1), r.design_id),
+            ):
+                if m not in picks:
+                    pool.append((c.cid, m))
+        pool.sort(key=lambda t: -(t[1].joint_score if t[1].joint_score is not None else -1))
+        for cid, m in pool:
+            if len(picks) >= budget:
+                break
+            picks.append(m)
+            taken[cid] = taken.get(cid, 0) + 1
+
+    for cid, n in taken.items():
+        if n > 1:
+            notes.append(f"cluster {cid} holds {n} of our {budget} slots — correlated bet")
+
+    return picks[:budget], notes
+
+
+# ---------------------------------------------------------------------------
+# The dossier
+# ---------------------------------------------------------------------------
+
+
+def _kill_criterion(rec: DesignRecord) -> str:
+    """The measurement that would prove this design wrong.
+
+    Stated per design and per its own weakest axis, because "it might not bind"
+    is not a kill criterion — it is a shrug. A kill criterion names the assay,
+    the direction and the consequence.
+    """
+    weak = weakest_axis(rec)
+    if weak is None:
+        return "UNSET — no axis scored, so nothing about this design is falsifiable yet"
+    axis, val = weak
+    if axis == "epitope":
+        if (rec.track or "") == "de_novo":
+            return (
+                "Fails if it loses the competitive-binding assay against trastuzumab: "
+                "a de novo binder off the domain IV epitope cannot be S-tier at any affinity. "
+                f"Predicted P(competes) {val:.2f} — this is the axis we expect to lose on."
+            )
+        return (
+            "Fails if competitive binding shows it no longer displaces trastuzumab, "
+            f"i.e. the CDR changes moved the paratope off the epitope (P {val:.2f})."
+        )
+    if axis == "binding":
+        return (
+            f"Fails if SPR K_D comes back above trastuzumab's (predicted P {val:.2f}). "
+            "This is the expected failure: the <70% CDRH3 rule forced us to change an "
+            "affinity-matured loop, and that is more likely to cost affinity than add it."
+        )
+    return (
+        f"Fails if the thermal melt is at or below trastuzumab's T_m (predicted P {val:.2f}) — "
+        "which would mean the framework and loop changes cost more stability than they bought."
+    )
+
+
+def _write_dossier(rec: DesignRecord, cluster_obj: Cluster | None, rank: int, budget: int) -> None:
+    ev = rec.axis_evidence or {}
+    lines: list[str] = []
+
+    js = rec.joint_score
+    if js is not None:
+        lines.append(
+            f"Joint P(S-tier) {js:.3f} = binding {rec.axes['binding']:.2f} x "
+            f"epitope {rec.axes['epitope']:.2f} x stability {rec.axes['stability']:.2f}, "
+            "each against a trastuzumab baseline of 0.50 on every axis."
+        )
+    for axis in AXES:
+        reason = (ev.get(axis) or {}).get("reason")
+        if reason:
+            lines.append(f"{axis.capitalize()}: {reason}")
+
+    if cluster_obj is not None:
+        others = len(cluster_obj.members) - 1
+        lines.append(
+            f"Represents cluster {cluster_obj.cid} — {cluster_obj.hypothesis}"
+            + (
+                f". Chosen over {others} sibling{'s' if others != 1 else ''} sharing this "
+                "hypothesis, so a failure here costs us one idea, not the shortlist."
+                if others
+                else ". A hypothesis no other design in the shortlist tests."
+            )
+        )
+
+    strongest = max(
+        ((a, rec.axes[a]) for a in AXES if rec.axes.get(a) is not None),
+        key=lambda kv: kv[1],
+        default=None,
+    )
+    if strongest:
+        lines.append(
+            f"On the list because its strongest axis is {strongest[0]} ({strongest[1]:.2f}) "
+            f"and it clears every entry gate."
+        )
+
+    conf = (ev.get("confidence_policy") or {})
+    if conf and not conf.get("calibrated", True):
+        lines.append(
+            "Structure confidence contributed nothing positive to this score: the cutoff "
+            "is not yet calibrated against the 454 measured non-binders, so high "
+            "confidence is ignored by policy rather than trusted."
+        )
+
+    rec.rationale = lines
+    rec.kill_criterion = _kill_criterion(rec)
+
+
+# ---------------------------------------------------------------------------
+# Audit
+# ---------------------------------------------------------------------------
+
+
+def audit(records: list[DesignRecord], budget: int = 4) -> dict:
+    """Facts about the shortlist that someone has to look at before 18:00.
+
+    Exposed as a function rather than printed from here so Mahamoodoul's report
+    renderer and Ansarul's CLI can both read it without this stage deciding how
+    it is displayed.
+    """
+    picked = sorted([r for r in records if r.selected], key=lambda r: r.rank or 999)
+    tracks: dict[str, int] = {}
+    for r in picked:
+        tracks[r.track or "unassigned"] = tracks.get(r.track or "unassigned", 0) + 1
+
+    unverified_abguard = [
+        r.design_id
+        for r in picked
+        if ((r.gates.checks or {}).get("abguard") or {}).get("status") != "pass"
+    ]
+
+    out: dict = {
+        "n_selected": len(picked),
+        "budget": budget,
+        "clusters_represented": sorted({r.cluster for r in picked if r.cluster}),
+        "tracks": tracks,
+        "joint_scores": {r.design_id: r.joint_score for r in picked},
+        "submission_ready": not unverified_abguard and len(picked) == budget,
+    }
+
+    blockers: list[str] = []
+    if unverified_abguard:
+        blockers.append(
+            f"{len(unverified_abguard)} of the shortlist have no abguard pass "
+            f"({', '.join(unverified_abguard)}). The hard rule is that every design in "
+            "the ranked list went through abguard — run this on the VM before submitting."
+        )
+    if len(picked) < budget:
+        blockers.append(f"only {len(picked)} designs selected for {budget} wells")
+    if len(tracks) == 1 and picked:
+        only = next(iter(tracks))
+        blockers.append(
+            f"all {len(picked)} picks are in the {only} track. That is defensible — "
+            "epitope competition is near-free there — but it must be a decision we "
+            "made, not one we discovered. Confirm it is deliberate."
+        )
+    if any(r.joint_score is None for r in picked):
+        blockers.append("some picks have an unscored axis, so the ranking is not fully evidence-based")
+
+    out["blockers"] = blockers
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Stage entry point
+# ---------------------------------------------------------------------------
+
+
 def run(records: list[DesignRecord], budget: int = 4, **kwargs) -> list[DesignRecord]:
     for rec in records:
         rec.joint_score = joint_score(rec)
+        rec.selected = False
+        rec.rank = None
 
     eligible = [r for r in records if r.gates.passed and not r.is_baseline]
+    clusters = cluster(eligible)
+    by_cid = {c.cid: c for c in clusters}
 
     scored = [r for r in eligible if r.joint_score is not None]
     if scored:
-        ordered = sorted(scored, key=lambda r: (-r.joint_score, r.design_id))
+        picks, notes = allocate(clusters, budget)
         stub = False
     else:
-        ordered = sorted(eligible, key=lambda r: r.design_id)
+        # Nothing is scored yet: keep the pipeline producing a complete result,
+        # but every record says the choice carries no scientific meaning.
+        picks = sorted(eligible, key=lambda r: r.design_id)[:budget]
+        notes = []
         stub = True
 
-    for i, rec in enumerate(ordered[:budget], start=1):
+    for i, rec in enumerate(picks, start=1):
         rec.selected = True
         rec.rank = i
         if stub:
-            rec.rationale.append(STUB_RATIONALE)
+            rec.rationale = [STUB_RATIONALE]
             rec.kill_criterion = "UNSET — no hypothesis behind this pick yet"
+        else:
+            _write_dossier(rec, by_cid.get(rec.cluster or ""), i, budget)
         rec.note("portfolio", f"selected rank {i}/{budget}")
+
+    report = audit(records, budget)
+    for note in notes + report["blockers"]:
+        for rec in picks:
+            rec.note("portfolio", f"audit: {note}")
+            break  # once per run, not once per design
 
     return records
