@@ -183,19 +183,41 @@ class ReferenceFeatures:
     framework: str
     cdrs: dict
     dev: features.Developability
+    dev_heavy: features.Developability | None = None
+    fr4_offset: int = 0
+
+    def dev_for(self, n_chains: int) -> tuple[features.Developability, str]:
+        """The reference readout to compare a design of `n_chains` against.
+
+        Like-for-like or the axis measures the wrong thing. Now that the
+        reference VL is verified, the reference construct is a paired scFv —
+        so comparing a single-chain design against it would charge that design
+        for the absence of a light chain it was never supposed to have, and
+        every VHH would read as destabilised. Chain count picks the comparator
+        and `axis_evidence` records which one was used.
+        """
+        if n_chains < 2 and self.dev_heavy is not None:
+            return self.dev_heavy, "reference heavy chain only (design is single-chain)"
+        return self.dev, "full reference construct"
 
     @classmethod
     def build(cls, ref: ReferenceAntibody) -> ReferenceFeatures:
         vh = features.clean(ref.vh)
         vl = features.clean(ref.vl)
         construct = vh + ("GGGGSGGGGSGGGGS" + vl if vl else "")
+        # The loop-boundary convention the reference is written in; see
+        # features.detect_fr4_offset. Every CDR extraction below uses it so a
+        # design's loops are cut the same way the reference's were.
+        offset = features.detect_fr4_offset(vh, ref.cdrh3)
         return cls(
             construct=construct,
             heavy=vh,
-            cdrh3=features.clean(ref.cdrh3) or (features.extract_cdrh3(vh) or ""),
-            framework=features.framework_of(vh),
-            cdrs=features.extract_cdrs(vh),
+            cdrh3=features.clean(ref.cdrh3) or (features.extract_cdrh3(vh, offset) or ""),
+            framework=features.framework_of(vh, offset),
+            cdrs=features.extract_cdrs(vh, offset),
             dev=features.developability(construct),
+            dev_heavy=features.developability(vh),
+            fr4_offset=offset,
         )
 
 
@@ -358,7 +380,9 @@ def score_epitope(
     retained = 0
     total = 0
     per_loop = {}
-    design_cdrs = features.extract_cdrs(features.chains_of(rec.sequence)[0] if rec.sequence else "")
+    design_cdrs = features.extract_cdrs(
+        features.chains_of(rec.sequence)[0] if rec.sequence else "", rf.fr4_offset
+    )
     for loop in ("h1", "h2", "h3"):
         ref_loop = features.clean(rf.cdrs.get(loop) or "")
         if loop == "h3":
@@ -413,13 +437,14 @@ def score_stability(rec: DesignRecord, rf: ReferenceFeatures) -> tuple[float | N
     chains = features.chains_of(seq)
     heavy = chains[0]
     dev = features.developability(seq)
-    fw = features.framework_of(heavy)
+    ref_dev, comparator = rf.dev_for(len(chains))
+    fw = features.framework_of(heavy, rf.fr4_offset)
     cdrh3 = features.clean(rec.cdrh3) or ""
 
     fw_aln = align(fw, rf.framework) if rf.framework else None
     fw_subs = fw_aln.substitutions() if fw_aln else 0
 
-    loops = "".join(v or "" for v in features.extract_cdrs(heavy).values())
+    loops = "".join(v or "" for v in features.extract_cdrs(heavy, rf.fr4_offset).values())
     ref_loops = "".join(v or "" for v in rf.cdrs.values())
 
     def loop_frac(s: str, aa: str) -> float:
@@ -427,9 +452,9 @@ def score_stability(rec: DesignRecord, rf: ReferenceFeatures) -> tuple[float | N
 
     f = {
         "framework_substitutions": fw_subs,
-        "patch_burden": dev.patch_burden - rf.dev.patch_burden,
-        "pi_distance": abs(dev.pi - 7.4) - abs(rf.dev.pi - 7.4),
-        "abs_net_charge": abs(dev.net_charge) - abs(rf.dev.net_charge),
+        "patch_burden": dev.patch_burden - ref_dev.patch_burden,
+        "pi_distance": abs(dev.pi - 7.4) - abs(ref_dev.pi - 7.4),
+        "abs_net_charge": abs(dev.net_charge) - abs(ref_dev.net_charge),
         "cdrh3_len_delta": len(cdrh3) - len(rf.cdrh3) if cdrh3 and rf.cdrh3 else 0,
         "disulfide_broken": 1.0 if dev.unpaired_cys_chains else 0.0,
         "loop_proline": (loop_frac(loops, "P") - loop_frac(ref_loops, "P")) * 10,
@@ -447,6 +472,7 @@ def score_stability(rec: DesignRecord, rf: ReferenceFeatures) -> tuple[float | N
         "features": {k: round(float(v), 4) for k, v in f.items()},
         "z": round(z, 4),
         "developability": dev.to_dict(),
+        "compared_against": comparator,
         "weights": "W_STABILITY in stages/score.py — hand-set prior, not fitted",
         "germline_reversion": "NOT COMPUTED — needs a germline V-gene set. Framework "
         "deviation from the reference is the implemented proxy, which is the "
@@ -461,7 +487,7 @@ def score_stability(rec: DesignRecord, rf: ReferenceFeatures) -> tuple[float | N
     driver_txt = ", ".join(f"{k} {c:+.2f}" for k, c in drivers) or "no deviation from baseline"
     return _logistic(z), ev, (
         f"{fw_subs} framework substitutions, hydrophobic-patch burden "
-        f"{f['patch_burden']:+.2f} and pI {dev.pi:.1f} vs {rf.dev.pi:.1f}; "
+        f"{f['patch_burden']:+.2f} and pI {dev.pi:.1f} vs {ref_dev.pi:.1f}; "
         f"dominant terms {driver_txt}"
     )
 

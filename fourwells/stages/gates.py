@@ -136,7 +136,14 @@ def track_checks(
     chains = features.chains_of(seq)
     heavy = chains[0] if chains else seq
 
-    cdrh3 = features.clean(rec.cdrh3) or features.extract_cdrh3(heavy)
+    # Which loop-boundary convention the reference is written in. Read off the
+    # reference, not assumed: the datasets use a 10-mer where strict Kabat
+    # reads 11, and under the wrong convention the parent scores 10/11 against
+    # itself and every identity number here shifts with it.
+    fr4_offset = features.detect_fr4_offset(ref.vh, ref.cdrh3)
+    checks["fr4_offset"] = fr4_offset
+
+    cdrh3 = features.clean(rec.cdrh3) or features.extract_cdrh3(heavy, fr4_offset)
     if cdrh3:
         rec.cdrh3 = cdrh3
     checks["cdrh3"] = cdrh3

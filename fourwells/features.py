@@ -62,11 +62,46 @@ _LINKER_RE = re.compile(r"(?:GGGGS){2,}|(?:GGGS){3,}|(?:GS){6,}")
 # must be consumed, not captured: including it shifts the alignment against the
 # reference loop by two positions and silently understates identity, which is
 # the direction that lets a near-copy of trastuzumab through the ceiling.
-_CDRH3_RE = re.compile(r"C[A-Z]{2}([A-Z]{1,32}?)WG[A-Z]G")
+#
+# WHERE THE LOOP ENDS IS NOT A CONSTANT. Strict Kabat runs the loop up to the
+# residue before the W of FR4's W-G-x-G, which reads trastuzumab's CDRH3 as the
+# 11-mer WGGDGFYAMDY. The challenge datasets do not: every one of the 524k
+# variant rows and every SPR row is a 10-mer, placing that trailing Y in the
+# framework — ...YYCSR-[WGGDGFYAMD]-Y-WGQGTLV... So the convention is a
+# property of the reference we were given, not something to hardcode, and
+# `detect_fr4_offset` reads it off the reference instead of assuming. Getting
+# this wrong is silent and total: under the Kabat reading the parent scores
+# 10/11 identity against *itself* and every identity gate shifts with it.
+_CDRH3_TEMPLATE = r"C[A-Z]{{2}}([A-Z]{{1,32}}?)[A-Z]{{{offset}}}WG[A-Z]G"
+_CDRH3_CACHE: dict[int, re.Pattern] = {}
 # CDRH1/H2 anchors, Kabat-ish. Best effort only — immunum is the authority and
 # these exist so the stability axis can see framework-vs-loop, not to gate on.
 _CDRH1_RE = re.compile(r"C[A-Z]{4}([A-Z]{8,12})W[VIF][RKQ]Q")
 _CDRH2_RE = re.compile(r"W[VIF][RKQ]Q[A-Z]{8,12}([A-Z]{16,19})(?:RF|KA|RV)")
+
+
+def _cdrh3_re(fr4_offset: int = 0) -> re.Pattern:
+    if fr4_offset not in _CDRH3_CACHE:
+        _CDRH3_CACHE[fr4_offset] = re.compile(_CDRH3_TEMPLATE.format(offset=fr4_offset))
+    return _CDRH3_CACHE[fr4_offset]
+
+
+def detect_fr4_offset(vh: str | None, cdrh3: str | None) -> int:
+    """How many residues the reference's convention puts between CDRH3 and FR4.
+
+    0 is the strict Kabat reading, 1 is the 10-mer convention both challenge
+    datasets use. Derived, never assumed: pass the reference VH and its stated
+    CDRH3 and this reports which convention they are written in, so the
+    extractor agrees with whatever the organisers' files say.
+    """
+    vh, cdrh3 = clean(vh), clean(cdrh3)
+    if not vh or not cdrh3:
+        return 0
+    idx = vh.find(cdrh3)
+    if idx < 0:
+        return 0
+    m = re.search(r"WG[A-Z]G", vh[idx + len(cdrh3) :])
+    return m.start() if m else 0
 
 
 def clean(seq: str | None) -> str:
@@ -158,17 +193,21 @@ def patch_burden(seq: str, window: int = 5, threshold: float = 1.6) -> float:
     return round(sum(m - threshold for _, m in hydrophobic_patches(seq, window, threshold)), 3)
 
 
-def extract_cdrh3(seq: str) -> str | None:
+def extract_cdrh3(seq: str, fr4_offset: int = 0) -> str | None:
     """Best-effort CDRH3 from a heavy chain. None when the anchors are absent.
+
+    `fr4_offset` selects the loop-boundary convention; get it from
+    `detect_fr4_offset(ref.vh, ref.cdrh3)` so the extraction agrees with the
+    reference rather than with a scheme we picked.
 
     Heuristic for the fast path only. immunum/abguard is the authority, and a
     design whose CDRH3 we cannot locate is flagged rather than guessed at.
     """
-    hits = _CDRH3_RE.findall(clean(seq))
+    hits = _cdrh3_re(fr4_offset).findall(clean(seq))
     return max(hits, key=len) if hits else None
 
 
-def extract_cdrs(seq: str) -> dict[str, str | None]:
+def extract_cdrs(seq: str, fr4_offset: int = 0) -> dict[str, str | None]:
     """H1/H2/H3 by anchor match. Any of them may be None."""
     seq = clean(seq)
     h1 = _CDRH1_RE.findall(seq)
@@ -176,11 +215,11 @@ def extract_cdrs(seq: str) -> dict[str, str | None]:
     return {
         "h1": h1[0] if h1 else None,
         "h2": h2[0] if h2 else None,
-        "h3": extract_cdrh3(seq),
+        "h3": extract_cdrh3(seq, fr4_offset),
     }
 
 
-def framework_of(seq: str) -> str:
+def framework_of(seq: str, fr4_offset: int = 0) -> str:
     """The chain with its detectable CDR loops removed.
 
     The split matters because the two axes pull in opposite directions: CDR
@@ -189,7 +228,7 @@ def framework_of(seq: str) -> str:
     average away the only actionable signal.
     """
     seq = clean(seq)
-    for loop in extract_cdrs(seq).values():
+    for loop in extract_cdrs(seq, fr4_offset).values():
         if loop:
             seq = seq.replace(loop, "", 1)
     return seq
