@@ -128,6 +128,13 @@ def cmd_schema(args) -> int:
     return 0
 
 
+def cmd_submission(args) -> int:
+    """Phase 7 on its own, without re-running any model."""
+    from .submission import main as submission_main
+
+    return submission_main([args.rundir])
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="fourwells", description=__doc__)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -147,6 +154,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("schema", help="print the frozen design-record contract")
     s.set_defaults(func=cmd_schema)
+
+    sb = sub.add_parser(
+        "submission",
+        help="rebuild the ranked list of up to 20 from an existing run",
+    )
+    sb.add_argument("rundir", help="a run directory holding designs.jsonl")
+    sb.set_defaults(func=cmd_submission)
 
     return p
 

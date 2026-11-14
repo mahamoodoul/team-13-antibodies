@@ -1,4 +1,4 @@
-.PHONY: submission verify viz demo schema test unit clean
+.PHONY: submission ranked verify viz demo schema test unit clean
 
 # results/ holds the designs we actually submit, and it is committed. Only
 # `make submission` may write it, and it scores the WHOLE pool. `make demo` is
@@ -15,6 +15,9 @@ verify: ## Re-derive every submitted construct from its design record. Offline.
 
 viz:    ## Rebuild viz/results.html from results/. `--check` fails if it is stale.
 	python3 -I viz/build_results.py
+
+ranked: ## Rebuild the ranked list of up to 20 from results/, no model re-run
+	python3 -m fourwells.cli submission results/
 
 demo:   ## Fast illustration over a subset, offline, no arguments. Writes results/demo/
 	python3 -m fourwells.cli run --out results/demo/ --seed 0

@@ -330,4 +330,16 @@ def render(records: list[DesignRecord], out_dir: Path, budget: int = 4) -> dict[
     paths["markdown"].write_text(to_markdown(selected, eligible, meta))
     paths["html"].write_text(to_html(selected, eligible, meta))
     write_order_sheet(selected, paths["order_sheet"])
+
+    # Phase 7. The order sheet above is the four that take the guaranteed wells;
+    # this is the ranked list of up to 20 we actually submit. Separate try, so a
+    # failure in either renderer cannot take the other down with it.
+    from . import submission as submission_mod
+
+    try:
+        paths.update(submission_mod.write_all(records, out_dir, selected, meta))
+    except Exception as exc:  # noqa: BLE001 — a bad view must not lose the data
+        print(f"  ! submission export failed ({exc.__class__.__name__}: {exc}); "
+              f"re-run with `python3 -m fourwells.submission {out_dir}`")
+
     return paths
