@@ -321,21 +321,29 @@ def render_markdown(
 
 
 # ---------------------------------------------------------------- html
+# One file, no build step, no server, no CDN, no framework. Vanilla JS against
+# a JSON blob embedded in the page, which is why it still opens from a file://
+# URL on a laptop with no network — the property that made us cut React, not a
+# dislike of interactivity. The interactive parts are the ones a judge actually
+# uses: sort by any axis, filter to a track or tier, and compare designs
+# side by side, because "why these four and not those four" is the question.
 
 _CSS = """
-:root{--ink:#16181d;--mut:#5c6370;--line:#e3e6ea;--bg:#fff;--acc:#1f6feb;
---good:#107c41;--bad:#b42318;--warn:#8a5a00;--chip:#f4f6f8}
+:root{--ink:#16181d;--mut:#5c6370;--line:#e3e6ea;--bg:#fff;--card:#fff;--acc:#1f6feb;
+--good:#107c41;--bad:#b42318;--warn:#8a5a00;--chip:#f4f6f8;--hi:#eaf2ff}
 @media(prefers-color-scheme:dark){:root{--ink:#e6e9ef;--mut:#9aa3b2;--line:#2b3038;
---bg:#14161a;--acc:#6ea8fe;--good:#4ec97f;--bad:#ff7b72;--warn:#e3b341;--chip:#1d2026}}
+--bg:#14161a;--card:#191c21;--acc:#6ea8fe;--good:#4ec97f;--bad:#ff7b72;--warn:#e3b341;
+--chip:#1d2026;--hi:#1b2433}}
 *{box-sizing:border-box}
 body{margin:0;padding:2.5rem 1.25rem 6rem;background:var(--bg);color:var(--ink);
 font:16px/1.6 ui-sans-serif,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
-main{max-width:62rem;margin:0 auto}
+main{max-width:72rem;margin:0 auto}
 h1{font-size:1.9rem;margin:0 0 .25rem;letter-spacing:-.02em}
 h2{font-size:1.3rem;margin:2.5rem 0 .75rem;padding-bottom:.35rem;
 border-bottom:1px solid var(--line);letter-spacing:-.01em}
-h3{font-size:1.05rem;margin:2rem 0 .5rem}
+h3{font-size:1.05rem;margin:0 0 .5rem}
 p,li{margin:.4rem 0}
+a{color:var(--acc)}
 code{font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
 background:var(--chip);padding:.1em .35em;border-radius:3px}
 pre{background:var(--chip);padding:.75rem 1rem;border-radius:6px;overflow-x:auto;
@@ -345,12 +353,11 @@ table{border-collapse:collapse;width:100%;margin:.75rem 0;font-size:14px}
 th,td{text-align:left;padding:.45rem .6rem;border-bottom:1px solid var(--line)}
 th{font-weight:600;color:var(--mut);font-size:12px;text-transform:uppercase;
 letter-spacing:.04em}
-td.n{font-variant-numeric:tabular-nums;text-align:right}
+td.n,th.n{font-variant-numeric:tabular-nums;text-align:right}
 .sub{color:var(--mut);font-size:14px;margin:0 0 1.5rem}
 .frame{background:var(--chip);border:1px solid var(--line);border-left:3px solid var(--acc);
 padding:1rem 1.25rem;border-radius:0 6px 6px 0;margin:1rem 0}
-.warn{border-left-color:var(--warn)}
-.warn strong{color:var(--warn)}
+.frame.warn{border-left-color:var(--warn)}
 .chip{display:inline-block;font-size:11px;font-weight:600;letter-spacing:.04em;
 padding:.15em .5em;border-radius:3px;background:var(--chip);border:1px solid var(--line);
 color:var(--mut);text-transform:uppercase}
@@ -358,14 +365,206 @@ color:var(--mut);text-transform:uppercase}
 .chip.meas{border-color:var(--good);color:var(--good)}
 .tier{font-weight:700}
 .tier.S{color:var(--good)}.tier.A{color:var(--acc)}.tier.B{color:var(--mut)}
-.slot{font-size:11px;font-weight:700;color:var(--good);letter-spacing:.04em}
-.card{border:1px solid var(--line);border-radius:8px;padding:1.25rem 1.5rem;margin:1.25rem 0}
-.bar{position:relative;height:6px;background:var(--line);border-radius:3px;margin-top:.3rem}
-.bar i{position:absolute;inset:0 auto 0 0;background:var(--acc);border-radius:3px}
+.slot{font-size:10px;font-weight:700;color:var(--good);letter-spacing:.06em;
+border:1px solid var(--good);border-radius:3px;padding:0 .3em;margin-left:.3em}
+.stub{color:var(--bad);font-weight:600;font-size:11px}
+.stats{display:flex;flex-wrap:wrap;gap:.75rem;margin:1.25rem 0}
+.stat{flex:1 1 8rem;border:1px solid var(--line);border-radius:8px;padding:.7rem .9rem;
+background:var(--card)}
+.stat b{display:block;font-size:1.5rem;line-height:1.2;font-variant-numeric:tabular-nums}
+.stat span{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
+.bar{position:relative;height:6px;background:var(--line);border-radius:3px;margin-top:.3rem;
+min-width:4rem}
+.bar i{position:absolute;top:0;bottom:0;left:0;background:var(--acc);border-radius:3px}
 .bar u{position:absolute;top:-2px;bottom:-2px;left:50%;width:1px;background:var(--mut)}
-.stub{color:var(--bad);font-weight:600}
-footer{max-width:62rem;margin:3rem auto 0;padding-top:1rem;border-top:1px solid var(--line);
+.bar.win i{background:var(--good)}
+.controls{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin:.75rem 0}
+.controls input,.controls select{font:inherit;font-size:13px;padding:.35rem .5rem;
+border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink)}
+.controls input[type=search]{flex:1 1 12rem}
+.btn{font:inherit;font-size:13px;padding:.35rem .7rem;border:1px solid var(--line);
+border-radius:6px;background:var(--card);color:var(--ink);cursor:pointer}
+.btn:hover{background:var(--hi)}
+.btn[aria-pressed=true]{border-color:var(--acc);color:var(--acc)}
+#tbl tbody tr{cursor:pointer}
+#tbl tbody tr:hover{background:var(--hi)}
+#tbl tbody tr.open{background:var(--hi)}
+#tbl th[data-k]{cursor:pointer;user-select:none;white-space:nowrap}
+#tbl th[data-k]:hover{color:var(--ink)}
+#tbl th .ar{opacity:.4;font-size:10px}
+.card{border:1px solid var(--line);border-radius:8px;padding:1.25rem 1.5rem;margin:1rem 0;
+background:var(--card)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(16rem,1fr));gap:1rem}
+.kv{font-size:13px;color:var(--mut)}
+.kv b{color:var(--ink);font-weight:600}
+.none{color:var(--mut);font-style:italic;padding:1rem 0}
+.cmpbar{position:sticky;bottom:0;background:var(--card);border-top:1px solid var(--line);
+padding:.6rem 1rem;margin:0 -1.25rem -6rem;display:none;gap:.5rem;align-items:center;
+font-size:13px;flex-wrap:wrap}
+.cmpbar.on{display:flex}
+footer{max-width:72rem;margin:3rem auto 0;padding-top:1rem;border-top:1px solid var(--line);
 color:var(--mut);font-size:13px}
+@media print{.controls,.cmpbar,.btn{display:none}#detail,#cmp{break-inside:avoid}}
+"""
+
+# Vanilla JS. Reads the embedded JSON, renders the table, and keeps the three
+# interactions a judge uses. No dependency, no fetch, no storage.
+_JS = r"""
+(function(){
+var D=JSON.parse(document.getElementById('data').textContent);
+var AX=D.axes, rows=D.designs, cap=D.cap, sortK='rank', sortA=true, sel=new Set();
+
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':s;return d.innerHTML}
+function num(v){return v==null?'—':(+v).toFixed(2)}
+function bar(v){
+  if(v==null) return '<span class="chip">no evidence</span>';
+  var p=Math.max(0,Math.min(1,+v))*100, w=(+v>0.5)?' win':'';
+  return '<div class="n">'+(+v).toFixed(2)+'</div><div class="bar'+w+'">'+
+         '<i style="width:'+p.toFixed(0)+'%"></i><u></u></div>';
+}
+function visible(){
+  var q=document.getElementById('q').value.trim().toLowerCase();
+  var tr=document.getElementById('ftrack').value, ti=document.getElementById('ftier').value;
+  var labOnly=document.getElementById('flab').getAttribute('aria-pressed')==='true';
+  return rows.filter(function(r){
+    if(labOnly&&!r.lab) return false;
+    if(tr&&r.track!==tr) return false;
+    if(ti&&r.tier!==ti) return false;
+    if(q){
+      var hay=(r.id+' '+(r.cdrh3||'')+' '+(r.cluster||'')+' '+(r.track||'')).toLowerCase();
+      if(hay.indexOf(q)<0) return false;
+    }
+    return true;
+  });
+}
+function sorted(list){
+  var s=list.slice();
+  s.sort(function(a,b){
+    var x=a[sortK], y=b[sortK];
+    if(x==null&&y==null) return 0;
+    if(x==null) return 1; if(y==null) return -1;
+    if(typeof x==='string') return sortA? x.localeCompare(y): y.localeCompare(x);
+    return sortA? x-y : y-x;
+  });
+  return s;
+}
+function draw(){
+  var list=sorted(visible()), tb=document.getElementById('tb'), h='';
+  list.forEach(function(r){
+    h+='<tr data-id="'+esc(r.id)+'"'+(sel.has(r.id)?' class="open"':'')+'>'
+      +'<td class="n">'+r.rank+(r.lab?'<span class="slot">LAB</span>':'')+'</td>'
+      +'<td><code>'+esc(r.id)+'</code>'+(r.stub?'<br><span class="stub">stub</span>':'')+'</td>'
+      +'<td>'+esc(r.track||'—')+'</td>'
+      +'<td class="tier '+esc(r.tier)+'">'+esc(r.tier)+'</td>'
+      +'<td class="n">'+num(r.joint)+'</td>';
+    AX.forEach(function(a){ h+='<td class="n">'+num(r.ax[a])+'</td>'; });
+    h+='<td class="n">'+num(r.identity)+'</td><td>'+esc(r.cluster||'—')+'</td></tr>';
+  });
+  tb.innerHTML=h || '<tr><td colspan="'+(6+AX.length)+'" class="none">'
+    +'No design matches these filters.</td></tr>';
+  document.getElementById('count').textContent=list.length+' of '+rows.length+' shown';
+  document.querySelectorAll('#tbl th[data-k]').forEach(function(th){
+    var a=th.querySelector('.ar');
+    if(a) a.textContent = th.dataset.k===sortK ? (sortA?'▲':'▼') : '';
+  });
+}
+function detail(r,scroll){
+  var h='<div class="card"><h3>'+esc(r.id)+' <span class="tier '+esc(r.tier)+'">'
+    +esc(r.tier)+'</span>'+(r.lab?'<span class="slot">LAB</span>':'')+'</h3>'
+    +'<p class="kv">'+esc(r.track||'—')+' · '+esc(r.format||'—')
+    +' · parent <b>'+esc(r.parent||'—')+'</b> · cluster <b>'
+    +esc(r.cluster||'—')+'</b> · generator <code>'+esc(r.generator||'unknown')
+    +'</code>'+(r.stub?' · <span class="stub">STUB, not a real design</span>':'')+'</p>';
+  h+='<div class="grid">';
+  AX.forEach(function(a){
+    h+='<div><div class="kv"><b>'+esc(D.axisLabel[a])+'</b> — lab measures by '
+      +esc(D.axisHow[a])+'</div>'+bar(r.ax[a])
+      +'<div style="margin-top:.35rem"><span class="chip pred">predicted</span></div></div>';
+  });
+  h+='</div>';
+  h+='<p class="kv" style="margin-top:1rem">CDRH3 <code>'+esc(r.cdrh3||'—')
+    +'</code> · identity to trastuzumab <b>'+num(r.identity)+'</b> · <b>'
+    +(r.muts==null?'—':r.muts)+'</b> mutations · gates <b>'
+    +esc(r.gates)+'</b> · '+r.len+' aa</p>';
+  h+='<pre><code>'+esc(r.seq)+'</code></pre>';
+  if(r.why&&r.why.length){
+    h+='<p><strong>Why it is on the list</strong></p><ul>';
+    r.why.forEach(function(w){h+='<li>'+esc(w)+'</li>';}); h+='</ul>';
+  }
+  if(r.kill) h+='<div class="frame warn"><p><strong>Kill criterion</strong> — '
+    +esc(r.kill)+'</p></div>';
+  h+='</div>';
+  document.getElementById('detail').innerHTML=h;
+  // Only scroll when the user asked for this dossier. On first paint we fill the
+  // panel but leave the page at the top, where the honest framing lives.
+  if(scroll) document.getElementById('detail').scrollIntoView({block:'nearest'});
+}
+function compare(){
+  var picks=rows.filter(function(r){return sel.has(r.id)});
+  var bar2=document.getElementById('cmpbar');
+  bar2.className = picks.length? 'cmpbar on':'cmpbar';
+  document.getElementById('cmpn').textContent=picks.length+' selected';
+  if(picks.length<2){document.getElementById('cmp').innerHTML='';return}
+  var h='<h2>Side by side</h2><table><thead><tr><th>Axis</th>';
+  picks.forEach(function(r){h+='<th class="n">'+esc(r.id)+(r.lab?' LAB':'')+'</th>'});
+  h+='</tr></thead><tbody>';
+  AX.forEach(function(a){
+    var vals=picks.map(function(r){return r.ax[a]}).filter(function(v){return v!=null});
+    var best=vals.length?Math.max.apply(null,vals):null;
+    h+='<tr><th>'+esc(D.axisLabel[a])+'</th>';
+    picks.forEach(function(r){
+      var v=r.ax[a], win=(v!=null&&best!=null&&v>=best);
+      h+='<td class="n">'+(win?'<strong>'+num(v)+'</strong>':num(v))+'</td>';
+    });
+    h+='</tr>';
+  });
+  h+='<tr><th>joint P(S-tier)</th>';
+  picks.forEach(function(r){h+='<td class="n">'+num(r.joint)+'</td>'});
+  h+='</tr><tr><th>Predicted tier</th>';
+  picks.forEach(function(r){h+='<td class="n tier '+esc(r.tier)+'">'+esc(r.tier)+'</td>'});
+  h+='</tr><tr><th>Cluster</th>';
+  picks.forEach(function(r){h+='<td class="n">'+esc(r.cluster||'—')+'</td>'});
+  h+='</tr><tr><th>CDRH3 identity</th>';
+  picks.forEach(function(r){h+='<td class="n">'+num(r.identity)+'</td>'});
+  h+='</tr></tbody></table>';
+  var cl={}; picks.forEach(function(r){cl[r.cluster]=1});
+  var n=Object.keys(cl).length;
+  h+='<p class="kv">'+n+' distinct cluster'+(n===1?'':'s')+' among '+picks.length
+    +' designs. '+(n<picks.length
+      ? 'Two of these test the same hypothesis — if it is wrong, both wells are wasted.'
+      : 'Each tests a different hypothesis, so their failure modes are uncorrelated.')+'</p>';
+  document.getElementById('cmp').innerHTML=h;
+}
+document.getElementById('tb').addEventListener('click',function(e){
+  var tr=e.target.closest('tr[data-id]'); if(!tr) return;
+  var r=rows.find(function(x){return x.id===tr.dataset.id}); if(!r) return;
+  if(e.shiftKey||e.metaKey||e.ctrlKey){
+    if(sel.has(r.id)) sel.delete(r.id); else sel.add(r.id);
+    draw(); compare();
+  } else { detail(r,true); }
+});
+document.querySelectorAll('#tbl th[data-k]').forEach(function(th){
+  th.addEventListener('click',function(){
+    if(sortK===th.dataset.k) sortA=!sortA; else {sortK=th.dataset.k; sortA=(sortK==='rank'||sortK==='id');}
+    draw();
+  });
+});
+['q','ftrack','ftier'].forEach(function(id){
+  document.getElementById(id).addEventListener('input',draw);
+});
+document.getElementById('flab').addEventListener('click',function(){
+  var on=this.getAttribute('aria-pressed')==='true';
+  this.setAttribute('aria-pressed',on?'false':'true'); draw();
+});
+document.getElementById('cmpclear').addEventListener('click',function(){
+  sel.clear(); draw(); compare();
+});
+document.getElementById('cmplab').addEventListener('click',function(){
+  sel.clear(); rows.forEach(function(r){if(r.lab) sel.add(r.id)}); draw(); compare();
+});
+draw();
+if(rows.length) detail(rows[0],false);
+})();
 """
 
 
@@ -378,8 +577,55 @@ def _axis_bar(v: float | None) -> str:
     if v is None:
         return '<span class="chip">no evidence</span>'
     pct = max(0.0, min(1.0, float(v))) * 100
-    return (f'<div>{v:.2f}</div><div class="bar"><i style="width:{pct:.0f}%"></i>'
-            f'<u></u></div>')
+    win = " win" if float(v) > BASELINE else ""
+    return (f'<div class="n">{v:.2f}</div><div class="bar{win}">'
+            f'<i style="width:{pct:.0f}%"></i><u></u></div>')
+
+
+def _payload(
+    records: list[DesignRecord],
+    selected: list[DesignRecord],
+    shortlist: list[DesignRecord],
+) -> str:
+    """The data the page runs on, embedded rather than fetched.
+
+    `</script` is escaped by encoding every '<' — a generator name or a
+    rationale line is data, and data must not be able to close the script tag.
+    """
+    picked = {r.design_id for r in selected}
+    designs = []
+    for i, r in enumerate(shortlist, 1):
+        designs.append({
+            "rank": i,
+            "id": r.design_id,
+            "lab": r.design_id in picked,
+            "track": r.track,
+            "format": r.format,
+            "parent": r.parent,
+            "generator": r.generator,
+            "cluster": r.cluster,
+            "tier": _verdict(r),
+            "joint": r.joint_score,
+            "ax": {a: r.axes.get(a) for a in AXES},
+            "identity": r.cdrh3_identity_to_tras,
+            "cdrh3": r.cdrh3,
+            "muts": r.cdrh3_mutations_from_tras,
+            "gates": "passed" if r.gates.passed else
+                     "FAILED: " + ", ".join(r.gates.failed_rules or ["?"]),
+            "seq": r.sequence,
+            "len": len(r.sequence),
+            "why": list(r.rationale),
+            "kill": r.kill_criterion,
+            "stub": bool(r.is_stub),
+        })
+    blob = {
+        "axes": list(AXES),
+        "axisLabel": {a: AXIS_META[a][0] for a in AXES},
+        "axisHow": {a: AXIS_META[a][1] for a in AXES},
+        "cap": SUBMISSION_CAP,
+        "designs": designs,
+    }
+    return json.dumps(blob, separators=(",", ":")).replace("<", "\\u003c")
 
 
 def render_html(
@@ -389,8 +635,10 @@ def render_html(
     warnings: list[str],
 ) -> str:
     f = _funnel(records)
-    budget = int(config.get("budget", 4) or 4)
-    mix = _tier_mix(selected[:budget])
+    shortlist = build_shortlist(records, selected)
+    mix = _tier_mix(selected)
+    tracks = sorted({r.track for r in shortlist if r.track})
+    tiers = sorted({_verdict(r) for r in shortlist})
     H: list[str] = []
     A = H.append
 
@@ -402,20 +650,33 @@ def render_html(
 
     A("<h1>FourWells — design shortlist</h1>")
     A(f'<p class="sub">Target <strong>{_h(config.get("target", "?"))}</strong> · '
-      f'reference <strong>{_h(config.get("reference", "?"))}</strong> · '
-      f'{budget} guaranteed lab slots<br>'
+      f'reference <strong>{_h(config.get("reference", "?"))}</strong><br>'
       f'run <code>{_h(config.get("run_id", "?"))}</code> · seed '
       f'{_h(config.get("seed", "?"))} · git <code>'
-      f'{_h(str(config.get("git_sha", "unknown"))[:12])}</code></p>')
+      f'{_h(str(config.get("git_sha", "unknown"))[:12])}</code> · schema '
+      f'{_h(config.get("schema_version", "?"))}</p>')
 
-    # --- the frame ---
+    # --- the numbers, at a glance ---
+    A('<div class="stats">')
+    for val, label in (
+        (f["generated"], "candidates"),
+        (f["passed"], "cleared the gates"),
+        (len(shortlist), f"submitted (cap {SUBMISSION_CAP})"),
+        (len(selected), "guaranteed lab slots"),
+        ("".join(f"{n}×{t} " for t, n in sorted(mix.items())).strip() or "—",
+         "predicted tier mix"),
+    ):
+        A(f'<div class="stat"><b>{_h(val)}</b><span>{_h(label)}</span></div>')
+    A("</div>")
+
+    # --- the honest frame ---
     A('<div class="frame">')
     A("<p><strong>Every number on this page is a prediction.</strong> The lab measures "
       "binding by SPR, epitope preservation by competitive binding, and thermostability "
       "directly — none of those results exist yet. Each axis is the probability that the "
       "design beats trastuzumab on that axis, so the reference scores exactly "
       "<strong>0.500</strong> everywhere by construction. The tick on each bar is that "
-      "0.500 line: right of it means we predict it beats trastuzumab.</p>")
+      "0.500 line: a green bar past the tick means we predict it beats trastuzumab.</p>")
     A("<p>Two of our own validation results are null, and they constrain this page:</p>")
     A("<ul>")
     A("<li>A model fit to the 524,346 FACS-labelled CDRH3 variants scores AUC "
@@ -440,98 +701,61 @@ def render_html(
     # --- funnel ---
     A("<h2>Funnel</h2>")
     A(f"<p>{f['generated']} candidates → <strong>{f['passed']} cleared every entry "
-      f"gate</strong> → {len(build_shortlist(records, selected))} submitted, of which the "
-      f"top {len(selected)} take the guaranteed lab slots.</p>")
+      f"gate</strong> → {len(shortlist)} submitted, of which the top {len(selected)} take "
+      "the slots every team is guaranteed. The rest are not filler — placing on the day "
+      "buys 16/12/8 more slots and each judge can nominate a favourite, so stopping at "
+      "four would throw away every slot we might win.</p>")
     if f["failed_rules"]:
         A("<p>Rejections by rule. A design that fails a gate is never moved to the other "
           "track, so these never reach the lab:</p>")
-        A("<table><thead><tr><th>Rule</th><th>Designs rejected</th></tr></thead><tbody>")
+        A("<table><thead><tr><th>Rule</th><th class=\"n\">Designs rejected</th></tr>"
+          "</thead><tbody>")
         for rule, n in f["failed_rules"].items():
             A(f'<tr><td>{_h(rule)}</td><td class="n">{n}</td></tr>')
         A("</tbody></table>")
-
-    # --- shortlist ---
-    shortlist = build_shortlist(records, selected)
-    A("<h2>The submission — ranked</h2>")
-    A(f"<p>{len(shortlist)} designs, ranked. The organisers take up to {SUBMISSION_CAP}; "
-      f"the top <strong>{len(selected)}</strong> marked <span class=\"slot\">LAB</span> "
-      "take the slots every team is guaranteed. The rest are not filler — placing on the "
-      "day buys 16/12/8 more slots and each judge can nominate a favourite, so stopping at "
-      "four would throw away every slot we might win.</p>")
-    A("<p><code>joint</code> is P(beats trastuzumab on all three axes) — the product, not "
-      "an average. <code>Tier</code> is the predicted tier: <strong>S</strong> beats all "
-      "three, <strong>A</strong> two, <strong>B</strong> one. Teams rank by S count, then "
-      "A, then B.</p>")
-    A("<table><thead><tr><th>#</th><th>Design</th><th>Track</th><th>Tier</th>"
-      "<th>joint</th>" + "".join(f"<th>{AXIS_META[a][0]}</th>" for a in AXES) +
-      "<th>CDRH3 id</th><th>Cluster</th></tr></thead><tbody>")
-    for i, r in enumerate(shortlist, 1):
-        slot = ' <span class="slot">LAB</span>' if r.selected else ""
-        v = _verdict(r)
-        A(f'<tr><td class="n">{i}{slot}</td><td><code>{_h(r.design_id)}</code>'
-          + ('<br><span class="stub">stub</span>' if r.is_stub else "") + "</td>"
-          f"<td>{_h(r.track or '—')}</td>"
-          f'<td class="tier {v}">{v}</td>'
-          f'<td class="n">{_pct(r.joint_score)}</td>' +
-          "".join(f'<td class="n">{_pct(r.axes.get(a))}</td>' for a in AXES) +
-          f'<td class="n">{_pct(r.cdrh3_identity_to_tras)}</td>'
-          f"<td>{_h(r.cluster or '—')}</td></tr>")
-    A("</tbody></table>")
-    if mix:
-        A(f"<p>Predicted tier mix in the {len(selected)} lab slots: " +
-          ", ".join(f"<strong>{n}× {_h(t)}</strong>" for t, n in sorted(mix.items())) +
-          ". That mix is what we optimise, not top affinity — four variants of one parent "
-          "is one bet placed four times, so the slots carry distinct hypotheses with "
-          "uncorrelated failure modes.</p>")
     if len(shortlist) < SUBMISSION_CAP:
         A(f'<div class="frame warn"><p>Only {len(shortlist)} eligible designs exist in '
           f"this run, against a cap of {SUBMISSION_CAP}. That is a generation-volume gap, "
           "not a ranking decision — we are leaving submission slots empty.</p></div>")
 
-    # --- dossiers ---
-    A("<h2>Dossiers — the lab slots</h2>")
-    A("<p>Full dossiers for the designs taking the guaranteed slots. Every other design in "
-      "the table above has the same fields in <code>designs.jsonl</code>.</p>")
-    for r in selected:
-        v = _verdict(r)
-        A('<div class="card">')
-        A(f'<h3>{r.rank}. <code>{_h(r.design_id)}</code> — predicted tier '
-          f'<span class="tier {v}">{v}</span></h3>')
-        A(f"<p class=\"sub\">{_h(r.track or '—')} · {_h(r.format or '—')} · parent "
-          f"{_h(r.parent or '—')} · cluster {_h(r.cluster or '—')} · generator "
-          f"<code>{_h(r.generator or 'unknown')}</code>"
-          + (' · <span class="stub">STUB, not a real design</span>' if r.is_stub else "")
-          + "</p>")
-        A("<table><thead><tr><th>Axis</th><th>Lab measures it by</th>"
-          "<th>P(beats trastuzumab)</th><th>Provenance</th></tr></thead><tbody>")
-        for a in AXES:
-            label, how, prov = AXIS_META[a]
-            cls = "meas" if prov == "measured" else "pred"
-            A(f"<tr><td>{_h(label)}</td><td>{_h(how)}</td><td>{_axis_bar(r.axes.get(a))}"
-              f'</td><td><span class="chip {cls}">{_h(prov)}</span></td></tr>')
-        A("</tbody></table>")
-        A("<table><tbody>")
-        A(f"<tr><th>CDRH3</th><td><code>{_h(r.cdrh3 or '—')}</code> — identity to "
-          f"trastuzumab {_pct(r.cdrh3_identity_to_tras)}, "
-          f"{_h(r.cdrh3_mutations_from_tras if r.cdrh3_mutations_from_tras is not None else '—')}"
-          " mutations</td></tr>")
-        gates = ("passed" if r.gates.passed
-                 else "FAILED: " + ", ".join(r.gates.failed_rules or ["?"]))
-        A(f"<tr><th>Gates</th><td>{_h(gates)}</td></tr>")
-        A("</tbody></table>")
-        A(f"<p><strong>Sequence</strong> ({len(r.sequence)} aa)</p>")
-        A(f"<pre><code>{_h(r.sequence)}</code></pre>")
-        if r.rationale:
-            A("<p><strong>Why it is on the list</strong></p><ul>")
-            for line in r.rationale:
-                A(f"<li>{_h(line)}</li>")
-            A("</ul>")
-        if r.kill_criterion:
-            A(f'<div class="frame warn"><p><strong>Kill criterion</strong> — '
-              f"{_h(r.kill_criterion)}</p><p>If that happens this design was the wrong "
-              "bet, and we want to know which of our four assumptions broke.</p></div>")
-        A("</div>")
+    # --- the interactive table ---
+    A("<h2>The submission — ranked</h2>")
+    A("<p><code>joint</code> is P(beats trastuzumab on all three axes) — the product, not "
+      "an average. <code>Tier</code> is the predicted tier: <strong>S</strong> beats all "
+      "three, <strong>A</strong> two, <strong>B</strong> one. Teams rank by S count, then "
+      "A, then B.</p>")
+    A('<p class="kv">Click any row for its dossier. Shift-click (or ⌘/Ctrl-click) two or '
+      "more rows to compare them side by side. Click a column heading to sort.</p>")
+    A('<div class="controls">')
+    A('<input type="search" id="q" placeholder="Search id, CDRH3, cluster, track…" '
+      'aria-label="Search designs">')
+    A('<select id="ftrack" aria-label="Filter by track"><option value="">All tracks</option>'
+      + "".join(f'<option value="{_h(t)}">{_h(t)}</option>' for t in tracks) + "</select>")
+    A('<select id="ftier" aria-label="Filter by predicted tier">'
+      '<option value="">All tiers</option>'
+      + "".join(f'<option value="{_h(t)}">tier {_h(t)}</option>' for t in tiers)
+      + "</select>")
+    A('<button class="btn" id="flab" aria-pressed="false">Lab slots only</button>')
+    A('<span class="kv" id="count"></span>')
+    A("</div>")
 
+    A('<table id="tbl"><thead><tr>')
+    A('<th class="n" data-k="rank">#<span class="ar"></span></th>')
+    A('<th data-k="id">Design<span class="ar"></span></th>')
+    A('<th data-k="track">Track<span class="ar"></span></th>')
+    A('<th data-k="tier">Tier<span class="ar"></span></th>')
+    A('<th class="n" data-k="joint">joint<span class="ar"></span></th>')
+    for a in AXES:
+        A(f'<th class="n" data-k="ax.{a}">{_h(AXIS_META[a][0])}<span class="ar"></span></th>')
+    A('<th class="n" data-k="identity">CDRH3 id<span class="ar"></span></th>')
+    A('<th data-k="cluster">Cluster<span class="ar"></span></th>')
+    A("</tr></thead><tbody id=\"tb\"></tbody></table>")
+
+    A('<div id="cmp"></div>')
+    A("<h2>Dossier</h2>")
+    A('<div id="detail"></div>')
+
+    # --- the named failure ---
     A("<h2>Where our ranking is wrong</h2>")
     A("<p>Measured on the 114 submittable, SPR-measured designs from the provided "
       "optimisation set — the closest thing to a dress rehearsal that exists. These are "
@@ -548,15 +772,25 @@ def render_html(
 
     A("<h2>Reproducing this</h2>")
     A(f"<pre><code>{_h(config.get('command', 'fourwells run'))}</code></pre>")
-    A("<p>Offline by default. The same seed and inputs reproduce <code>selected.jsonl</code> "
-      "byte for byte. Every candidate, rejections included, is in "
-      "<code>designs.jsonl</code>.</p>")
+    A("<p>Offline by default. The same seed and inputs reproduce "
+      "<code>selected.jsonl</code> byte for byte. Every candidate, rejections included, is "
+      "in <code>designs.jsonl</code>; this page is a view of it and never the record of "
+      "truth.</p>")
 
-    A("</main><footer>")
+    A("</main>")
+    A('<div class="cmpbar" id="cmpbar"><span id="cmpn">0 selected</span>'
+      '<button class="btn" id="cmplab">Compare the lab slots</button>'
+      '<button class="btn" id="cmpclear">Clear</button>'
+      '<span class="kv">Shift-click rows to add or remove.</span></div>')
+    A("<footer>")
     A(f"FourWells · schema {_h(config.get('schema_version', '?'))} · "
-      f"{f['generated']} candidates, {f['passed']} eligible, {len(selected)} shortlisted. "
-      "Predictions, not measurements.")
-    A("</footer></body></html>")
+      f"{f['generated']} candidates, {f['passed']} eligible, {len(shortlist)} submitted. "
+      "Predictions, not measurements. No network required.")
+    A("</footer>")
+    A(f'<script type="application/json" id="data">'
+      f"{_payload(records, selected, shortlist)}</script>")
+    A(f"<script>{_JS}</script>")
+    A("</body></html>")
     return "\n".join(H) + "\n"
 
 

@@ -252,8 +252,10 @@ number interpretable.
       distance from 7, disulfide integrity, loop length relative to germline, packing quality
       from the refolded structure. JapanFold's AF2-IG is antibody-specific and already paid
       for — worth a look if Ruhit has it working.
-- [ ] **Calibrate the structure-confidence cutoff on the 454 true negatives**, not on a
-      remembered threshold. 21 of them score ipTM ≥ 0.7 while being measured not to bind.
+- [x] **Calibrate the structure-confidence cutoff per model**, not on a remembered
+      threshold. Done — 91 cognate pairs vs ~8,100 shuffled (computational, *not* measured)
+      pairs. Boltz-2 admits 94% of shuffled pairs at 0.7; AF3 is the only usable gate and is
+      weak. Use each model's own baseline row. See `proof/tidy/iptm_calibration.md`.
 
 ### Layer 3: the portfolio step — this is the 40%
 
@@ -288,9 +290,9 @@ your own folder on the shared home.
 - [ ] **By 10:30** — on the box, keys loaded, one trivial hosted job returned through
       `forge.py`. If access is blocked, find an Apheris mentor at once; Egor Marin and Leonardo
       Castorina are both here and both are judges
-- [ ] **By 11:00** — provided datasets unpacked and handed to Rizve. The 524K variant set and
-      the 454 true negatives are what Rizve is blocked on, so these come before anything you
-      generate
+- [x] **By 11:00** — provided datasets unpacked and handed to Rizve. The 524K variant set
+      and the ipTM cross-pairing matrices are what Rizve is blocked on, so these come before
+      anything you generate
 - [ ] **By 11:30** — trastuzumab itself run through the full Design → Refold → Score path as
       our baseline. Everything we later claim is relative to that row
 - [ ] **By 13:00** — first real batch, optimisation track. The <70% CDRH3 identity rule forces
@@ -324,9 +326,11 @@ This is the highest-leverage seat on the team, not the support role.
 
 ### Morning (10:00–12:00)
 
-- [ ] Unpack the provided datasets as soon as Ruhit has them and read
-      [brief.md](brief.md#data-we-were-given) properly. The 524K labelled variants, the 190
-      SPR-measured designs and the 454 true negatives are the three that matter
+- [x] Unpack the provided datasets as soon as Ruhit has them and read
+      [brief.md](brief.md#data-we-were-given) properly. The three that matter are the 524K
+      labelled variants, the 190 SPR-measured designs, and the ipTM matrices — **not** the
+      "454 measured true negatives" the brief promises, which do not exist. See the proof
+      section and `proof/audit_datasets.py`
 - [ ] Get each into a tidy CSV and hand them to Rizve as fixtures — Rizve is blocked on these
 - [ ] Design the held-out split yourself — split by mutation count, not at random, so the test
       set is not a near-neighbour of training. Getting this wrong invalidates the headline number
@@ -358,37 +362,85 @@ not done, a working pipeline scores badly anyway.
 ## The proof: show the ranker works
 
 The single thing most likely to win the day, and it is pure software work. Every team will show
-a pipeline. Almost none will show evidence their ranking beats picking at random — and we have
-been handed the data to prove it.
+a pipeline. Almost none will show evidence their ranking beats picking at random.
 
-### We do not need outside data
+**This section was rewritten at 12:00 after the experiments were actually run.** The original
+plan was built on a claim in the brief that does not survive contact with the data, and on an
+assumption about the FACS labels that turned out to be false. Both failures are now the
+strongest material we have, because they are measured and nobody else will have measured them.
 
-[brief.md](brief.md#data-we-were-given) lists what we have. Three pieces matter:
+### What the data actually is
 
-| Dataset | Why it is decisive |
+| Dataset | What it supports |
 | --- | --- |
-| 524,346 trastuzumab CDRH3 variants, FACS, 3 affinity classes | Same target, same parent, labelled. A training set for a sequence → affinity model, not just a novelty reference |
-| ~700 optimisation designs, 190 SPR-measured | Held-out validation with the *same assay the judges will use*. This is our enrichment number |
-| 454 VHH–antigen true negatives, 21 with AF3 ipTM ≥ 0.7 | Measured **not** to bind. The only way to calibrate a structure-confidence cutoff before trusting it |
+| 524,346 trastuzumab CDRH3 variants, FACS, 3 classes | A sequence → FACS-class model, and the novelty universe. **Not** a route to affinity — see below |
+| ~700 optimisation designs, 190 SPR-measured | Held-out validation in the *same assay the judges use*. 131 are submittable; 114 survive the leakage filters |
+| 91 cognate VHH–antigen pairs vs ~8,100 shuffled pairs, ipTM from 3 models | The calibration curve for structure confidence |
+
+**The correction that matters.** The brief describes 454 VHH–antigen pairs "measured not to
+bind", 21 at AF3 ipTM ≥ 0.7. That set does not exist. The only SPR data for those complexes is
+Supplementary Table S1 — 29 rows, 12 non-cognate pairs — and its authors state plainly that
+"N/A denotes no reportable affinity fit, NOT confirmed non-binding". The 454 can only mean the
+*shuffled, computational* pairs, and the per-pair ipTM values behind "21 ≥ 0.7" appear only as
+printed cells in a supplementary figure. Say **"shuffled non-cognate pairs, computational"**
+every time. Smorodina et al. has Victor Greiff as a co-author and we are in Oslo.
+
+### Finding 1 — the FACS labels do not reach the judges' assay
+
+Run, not assumed. A per-position log-odds model over the CDRH3 reaches **AUC 0.879** on
+held-out distant FACS variants, so it extrapolates fine inside its own assay. On the 114
+submittable, unseen SPR-measured designs it scores **AUC 0.508 — chance**. Plain identity to
+the trastuzumab CDRH3 scores **0.750** on the same designs. The 524,000-row training set loses
+to a string comparison.
+
+The ceiling is the label, not the model: 27 molecules carry both a FACS class and a fitted KD,
+and `high` vs the rest predicts a tighter KD at only **AUC 0.608**, with non-monotone class
+medians. No model fit to these labels can do much better. So **do not rank on a FACS-trained
+predictor**; carry identity-to-parent as a feature and as the thing to beat.
+
+### Finding 2 — one confidence cutoff means three different things
+
+91 cognate pairs against ~8,100 shuffled ones, per model, at the round 0.7 everyone uses:
+
+| Model | AUC | At ipTM ≥ 0.7 |
+| --- | --- | --- |
+| AF3 | 0.754 | keeps 47% of known binders, admits 3% of shuffled pairs |
+| Boltz-2 | 0.645 | admits **94%** of shuffled pairs — 7,723 of 8,190. It rejects almost nothing |
+| Chai-1 | 0.568 | discards **92%** of known binders; its whole distribution sits below 0.7 |
+
+Our refolds run on Boltz-2, which is the worst of the three for this. Confirmed independently
+on our own target: **Protenix scores trastuzumab's own crystal-structure complex at ipTM 0.676
+where Boltz-2 gives 0.960** — no headroom, which is why not one of 25 refolded designs beat the
+baseline. So **judge every design against the baseline row for its own model**; ipTM 0.72 is
+above the parent under Protenix and far below it under Boltz-2. Confidence is a tie-breaker,
+never a gate.
+
+### Finding 3 — the base rate is 0.76%, and it is the robust number
+
+Of the 190 SPR-measured rows, 8 are trastuzumab's own replicates, leaving 182 designs; only 131
+clear the <70%-identity novelty gate. Exactly **1 of those 131** reaches the parent, whichever
+central bar you pick — the parent's geometric mean (0.0954 nM), its median (0.1345) or the
+single row people quote (0.152). The 182-denominator rate moves with the bar, from 2.2% to
+3.8%; this one does not. An earlier 6.3% counted the parent's own replicates as wins.
+
+The honest reading is sharper: that single winner, `WGGSGPYLFD` at 0.095 nM, is level with the
+geometric mean and inside a 6.2x assay spread. **No submittable design in the provided data
+clearly beats trastuzumab on affinity** — and the strongest binder in the whole set sits at
+exactly 0.70 identity and fails the gate. That is the argument for spreading four bets across
+axes instead of chasing affinity with all of them.
 
 ### The slide that wins the judgment category
 
-Those 21 true negatives scoring ipTM ≥ 0.7 are the most valuable rows in the whole challenge.
-They are direct, measured proof that **high structure confidence does not mean binding** —
-exactly the mistake the rest of the field makes, and exactly what our ranker is built to avoid.
+Not "our ranker is good". The claim is **"we measured which of our tools actually work, and
+three of them do not"**:
 
-1. Fit the binding predictor on the 524K FACS-labelled variants. Hold out a clean slice by
-   mutation count so the test set is not a near-neighbour of training.
-2. Rank the 190 SPR-measured optimisation designs blind. Report hit rate in our top 4, top 10,
-   top 25 against the hit rate of the full 190. **Top 4 is the number that matters** — it is the
-   decision we are actually making.
-3. Run the ranker over the 454 true negatives. Show what fraction of the ipTM ≥ 0.7 decoys our
-   joint score correctly rejects where a structure-confidence filter alone would have accepted them.
-4. Set the structure-confidence cutoff *from that curve*, not from a round number someone
-   remembered.
+1. A 524k-row training set beaten by string identity, because the label is the wrong assay.
+2. A confidence score that admits 94% of non-binders at the threshold the field uses.
+3. A benchmark molecule whose own replicates span 6.2x, so most "beats trastuzumab" claims
+   are inside noise.
 
-Step 3 is the headline. "A confidence filter would have ordered these 21; we rejected N of them,
-and here is why" is a concrete, measured claim about judgment — which is 40% of the score.
+Each is a number a judge can recompute from the provided data in a few minutes. Then show the
+four picks and name, per design, which axis it is betting on and what would kill it.
 
 ### Reporting it honestly
 
