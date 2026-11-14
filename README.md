@@ -61,5 +61,22 @@ Done. You can run a model from any of the three.
 
 ## Where things go
 
-`results/` model outputs · `nebius-runs/` run ids · both safe to commit, both help us
-show where a number came from.
+`results/` model outputs · `nebius-runs/` run ids · both committed, both help us
+show where a number came from. Large intermediates stay in `data/`.
+
+## The team
+
+**team-13 — FourWells**, Oslo AI × Antibodies Hackathon, 14 November 2026.
+
+Four lanes, agreed in the first twenty minutes and held all day. The rule that kept
+it moving: freeze the design-record schema early, then never block on each other.
+
+| | Lane | Owns |
+| --- | --- | --- |
+| **G. M. Ansarul Kabir** | Spine | CLI, orchestration, the schema contract, caching, the demo run, the rendered report |
+| **Rizve Hasan** | Ranking | Entry gates, the three axis predictors, portfolio selection |
+| **Ruhit Rafian** | Generation | Apheris Foundry, the H100, refold-and-score, provenance |
+| **Md Mahamodul Islam** | Proof & pitch | Datasets, validation, the enrichment result, the deck |
+
+Start at [docs/plan.md](docs/plan.md) for the strategy and
+[docs/brief.md](docs/brief.md) for the challenge itself.

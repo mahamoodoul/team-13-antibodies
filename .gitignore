@@ -10,8 +10,6 @@ __pycache__/
 chat-history/
 credentials.private.json
 japanfold.env
-nebius-runs/
-results/
 setup/
 shortlist-design.html
 team-13
@@ -24,3 +22,7 @@ proof/tidy/facs_*.csv
 # Deliberately NOT committed: this repo is public and redistributing their data
 # is the organisers' call, not ours.
 data/source/
+
+# results/ and nebius-runs/ are deliberately NOT ignored. The README says both
+# are safe to commit, provenance is 20% of the execution score, and the ranked
+# list we submit lives in results/. Large intermediates go in data/ instead.
