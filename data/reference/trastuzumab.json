@@ -49,15 +49,15 @@
     "_base_rate": {
       "submittable_designs": 131,
       "submittable_beating_bar": 1,
-      "submittable_rate": 0.008,
+      "submittable_rate": 0.0076,
       "all_designs": 182,
       "all_beating_geometric_mean": 4,
       "all_beating_median": 6,
       "all_beating_0152": 7,
-      "_derivation": "Of the 190 quantified_binding rows, 8 ARE trastuzumab's own replicates, leaving 182 genuine designs. Against the 0.0954 geometric mean, 4 of 182 win (2.2%); against the 0.1345 median, 6 (3.3%); against 0.152, 7 (3.8%). But only 131 of the 182 are SUBMITTABLE (10-mer at <70% CDRH3 identity; 48 sit at >=70% identity and 3 are not 10-mers), and exactly 1 of those 131 reaches any of the three bars. The submittable base rate is 0.8% and does not move with the choice of bar, which is why it is the number to use.",
+      "_derivation": "Of the 190 quantified_binding rows, 8 ARE trastuzumab's own replicates, leaving 182 genuine designs. Against the 0.0954 geometric mean, 4 of 182 win (2.2%); against the 0.1345 median, 6 (3.3%); against 0.152, 7 (3.8%). But only 131 of the 182 are SUBMITTABLE (10-mer at <70% CDRH3 identity; 48 sit at >=70% identity and 3 are not 10-mers), and exactly 1 of those 131 reaches any of the three bars. The submittable base rate is 0.76% and does not move with the choice of bar, which is why it is the number to use.",
       "_the_honest_version": "That single winner is WGGSGPYLFD at 0.095 nM, 60% identity - level with the 0.0954 geometric mean, inside assay noise. So strictly, ZERO submittable designs in the provided data clearly beat trastuzumab on affinity. State it that way; it is both true and a stronger argument for spreading our four bets across axes.",
-      "_correction": "An earlier version of this file claimed 12 of 190 designs beat the parent, a 6.3% base rate. That counted trastuzumab's own replicates as designs (5 of the 12) and ignored the novelty gate. Do not put 6.3% on a slide: a judge who recomputes it finds 182 genuine designs, 131 submittable, and a 0.8% base rate.",
-      "_use": "This 0.8% is the denominator of the enrichment claim. Our ranker's top-4 hit rate is measured against it, not against 3.3% or 6.3%."
+      "_correction": "An earlier version of this file claimed 12 of 190 designs beat the parent, a 6.3% base rate. That counted trastuzumab's own replicates as designs (5 of the 12) and ignored the novelty gate. Do not put 6.3% on a slide: a judge who recomputes it finds 182 genuine designs, 131 submittable, and a 0.76% base rate.",
+      "_use": "This 0.76% is the denominator of the enrichment claim. Our ranker's top-4 hit rate is measured against it, not against 3.3% or 6.3%. Matches docs/binding-axis-validation.md."
     },
     "_how_hard_binding_is": "Median KD across the 182 designs is 79.5 nM against the parent's 0.095 nM, roughly a 800x gap, and not one submittable design clearly beats the parent. This is the evidence for the plan's call that affinity is the hard axis and thermostability the beatable one. See proof/enrichment.py and proof/tidy/enrichment.md."
   },

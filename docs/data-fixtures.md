@@ -46,23 +46,38 @@ model, so a new model needs its own baseline row.
 Calibrate the cutoff from the curve in `iptm_calibration.csv`, per model. That is step 4 of
 the proof in the plan, and the data for it is here.
 
-## READ THIS 2 — the enrichment base rate is 3.3%, not 6.3%
+## READ THIS 2 — the enrichment base rate is 0.76%
 
-Of the 190 `quantified_binding` rows in the SPR table, **8 are trastuzumab's own reference
-rows**, not designs. The real pool is 182 genuine variant designs.
+Two corrections stack here, and only the second one survives to the slide.
 
-| Threshold | Designs beating it |
-| --- | --- |
-| median trastuzumab KD, 0.1345 nM | **6 / 182 = 3.3%** |
-| a single reference row, 0.152 nM | 7 / 182 = 3.8% |
-| trastuzumab's best, 0.0285 nM | 1 / 182 = 0.5% |
+First, of the 190 `quantified_binding` rows, **8 are trastuzumab's own replicates**, not
+designs. So the pool is 182 genuine designs, and an earlier reading of 12/190 = 6.3% counted
+5 parent rows beating another parent row as wins.
 
-An earlier reading of 12/190 = 6.3% came from counting 5 trastuzumab rows that beat another
-trastuzumab row as designs. Use 3.3% as the denominator of the enrichment claim — a judge who
-recomputes it will find 182, not 190.
+Second — and this is the one that matters — **we can only submit designs under 70% CDRH3
+identity to the parent.** Filtering the measured set the way we filter our own collapses it:
 
-Also worth putting on the slide: median design KD is 79.5 nM against the parent's 0.13 nM, a
-~590x gap. Affinity really is the hard axis.
+| Subset | n | beat the parent | rate |
+| --- | --- | --- | --- |
+| all rows | 190 | 12 | 6.3% (wrong: counts parent replicates) |
+| non-parent designs | 182 | 6 | 3.3% (wrong: ignores the novelty gate) |
+| **identity < 0.70 — submittable** | **131** | **1** | **0.76%** |
+
+Use **0.76%**. It is also the robust number: 1 of 131 is the answer whether you set the bar
+at the parent's geometric mean (0.0954 nM), its median (0.1345) or the single row people
+quote (0.152). The other two rates move with the bar; this one does not.
+
+The honest version is sharper still. That single winner is `WGGSGPYLFD` at 0.095 nM, level
+with the 0.0954 geometric mean and inside a 6.2x assay spread — so **no submittable design in
+the provided data clearly beats trastuzumab on affinity.** Six that do are unsubmittable,
+including the strongest binder in the set, `WGSQGFYAYD` at 0.023 nM, which sits at exactly
+0.70 identity and fails the gate.
+
+Also worth putting on the slide: median design KD is 79.5 nM against the parent's 0.095 nM,
+roughly an 800x gap. Affinity really is the hard axis — which is the argument for spreading
+our four bets across axes rather than chasing affinity with all of them.
+
+Full derivation in `binding-axis-validation.md` and `proof/tidy/enrichment.md`.
 
 ## READ THIS 3 — the identity threshold is ambiguous, and it bites
 
