@@ -62,18 +62,37 @@ class Cache:
 
         In offline mode a miss raises instead of calling `compute`, so we never
         quietly depend on the network during a demo.
+
+        Every outcome is recorded to the call log — hit, miss, and the offline
+        block in particular. A run that produces nothing because it was blocked
+        offline looks identical, from the records alone, to a run whose model
+        returned nothing useful, and that ambiguity has cost us time already.
         """
+        from . import calllog
+
+        log = calllog.active()
         key = key_for(namespace, payload)
+
         hit = self.get(key)
         if hit is not None:
+            with log.call(namespace, "memo", request=payload, key=key) as slot:
+                slot["status"] = calllog.CACHE_HIT
+                slot["response"] = hit
             return hit
+
         self.misses += 1
         if self.offline:
+            with log.call(namespace, "memo", request=payload, key=key) as slot:
+                slot["status"] = calllog.OFFLINE_BLOCKED
+                slot["response"] = "offline: no cached value, compute() not called"
             raise CacheMiss(
                 f"offline: no cached value for {key} ({namespace}). "
                 f"Re-run with --online once to populate it, then commit cache/."
             )
-        value = compute()
+
+        with log.call(namespace, "compute", request=payload, key=key) as slot:
+            value = compute()
+            slot["response"] = value
         self.put(key, value)
         return value
 

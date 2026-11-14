@@ -255,14 +255,26 @@ def abguard_check(rec: DesignRecord, failed: list[str], checks: dict, abguard: s
         "format": rec.format,
         "track": rec.track,
     }
+    from .. import calllog
+
+    log = calllog.active()
     try:
-        proc = subprocess.run(
-            [abguard, "check", "--json", "-"],
-            input=json.dumps(payload),
-            capture_output=True,
-            text=True,
-            timeout=120,
-        )
+        with log.call("abguard", "check", stage="gates", request=payload,
+                      design_id=rec.design_id) as slot:
+            proc = subprocess.run(
+                [abguard, "check", "--json", "-"],
+                input=json.dumps(payload),
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+            slot["response"] = {
+                "returncode": proc.returncode,
+                "stdout": proc.stdout[:2000],
+                "stderr": proc.stderr[:2000],
+            }
+            if proc.returncode != 0:
+                slot["status"] = calllog.ERROR
     except subprocess.TimeoutExpired:
         checks["abguard"] = {"status": "ERROR", "why": "timeout after 120s"}
         failed.append("abguard timed out")

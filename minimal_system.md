@@ -60,7 +60,7 @@ that distinction wrong by cutting both.
 | React + TypeScript | A build toolchain is a liability on a judge's laptop, not a demo. Vanilla JS against a JSON blob in the page gives the same interactions with no install and no `node_modules`. |
 | FastAPI backend | Nothing needs a server. The pipeline is a batch job that writes files, and the page reads data embedded in itself. |
 | SQLite / PostgreSQL | Peak scale is ~24 candidates against 768 measured designs. JSONL on disk is greppable, diffable in git, and has no migration step. |
-| Three.js structure viewer | A judge asks why we picked these four, not to rotate a cartoon. The one genuine loss on this list. |
+| Three.js structure viewer | **Decided, not deferred.** A judge asks why we picked these four, not to rotate a cartoon. It would also need a structure file per design that the pipeline does not produce. Do not re-propose this. |
 | Live run-status UI | The run takes seconds and prints to stdout. |
 
 What the page does, chosen because each answers a question a judge actually asks:
@@ -79,6 +79,42 @@ The constraint that survives all of it: **no network at runtime**. No CDN, no we
 no `fetch`, no external reference of any kind — asserted in tests, and the behaviour is
 driven in headless Chrome by `tests/test_report.py` so that a sort which silently does
 nothing cannot pass for one that works.
+
+### The second UI: the call log
+
+[`report.html`](fourwells/report.py) is for the judges. [`logs/index.html`](fourwells/logview.py)
+is for us, and it answers a question the design records cannot.
+
+```
+make logs      # write logs/index.html
+make watch     # live on 127.0.0.1:8765, re-read on every refresh
+```
+
+`designs.jsonl` records what we *decided*, not what we *asked*. When a run produces
+nothing, the question is always: did the call fail, was it blocked by offline mode, or
+did it return something we then discarded? That is unanswerable from the records, and it
+has already cost us time. So every expensive call is recorded as one JSON line with its
+request, its response, its duration, and one of four statuses — `ok`, `cache_hit`,
+`offline_blocked`, `error`.
+
+`Cache.memo` is the hook, because it is already the choke point every expensive call goes
+through; `abguard` and the Foundry pipeline are instrumented directly, and each pipeline
+stage is logged as a unit of work so the log alone answers "where did the time go".
+
+The UI shows totals and latency percentiles, a per-provider breakdown ordered by time
+spent, and the full log with filters by status, provider and run, plus a slow-only
+(≥ p95) toggle. Clicking a row shows the request and the response it got back.
+
+Two rules it has to keep, because a log that leaks or kills the run is worse than none:
+
+- **Credentials are redacted at the write boundary**, not only in the recording helper.
+  The first render of this UI printed an API key, because the entry had been written
+  through `write()` and redaction lived one level up.
+- **Logging can never be the reason a run dies.** An unwritable log directory disables
+  logging and the run continues. That was also a real bug: the constructor used to raise.
+
+`logs/` is gitignored. Credentials are stripped and bodies truncated, but it still holds
+what we sent and what came back, and this repo is public.
 
 ## 4. State on disk
 

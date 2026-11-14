@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from . import calllog
 from .cache import Cache
 from .schema import AXES, SCHEMA_VERSION, DesignRecord, validate, write_jsonl
 from .stages import gates as gates_stage
@@ -63,9 +64,15 @@ def run_pipeline(
     result = RunResult(records=[])
     result.warnings.extend(ref.warnings)
 
+    log = calllog.active()
+
     def timed(name: str, fn, n_in: int):
         t0 = time.monotonic()
-        out = fn()
+        # The stage itself is logged as a unit of work, so the log answers
+        # "where did the time go" without cross-referencing config.json.
+        with log.call("pipeline", name, stage=name, request={"n_in": n_in}) as slot:
+            out = fn()
+            slot["response"] = {"n_out": len(out)}
         dt = time.monotonic() - t0
         result.stages.append(StageResult(name, dt, n_in, len(out)))
         if dt > timebox:

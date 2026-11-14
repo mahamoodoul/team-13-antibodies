@@ -24,3 +24,8 @@ proof/tidy/facs_*.csv
 # Deliberately NOT committed: this repo is public and redistributing their data
 # is the organisers' call, not ours.
 data/source/
+
+# Call log: holds request and response bodies from our runs. Credentials are
+# redacted on write, but this is still what we sent and what came back, and the
+# repo is public. Local only.
+logs/

@@ -13,8 +13,9 @@ import random
 import sys
 from pathlib import Path
 
+from . import calllog
 from .cache import Cache
-from .runner import run_pipeline, write_outputs
+from .runner import make_run_id, run_pipeline, write_outputs
 from .schema import AXES, SCHEMA_VERSION
 from .targets import resolve_reference_ab, resolve_target
 
@@ -97,6 +98,22 @@ def cmd_run(args) -> int:
         return 2
     ref = resolve_reference_ab(args.reference)
 
+    config = {
+        "target": getattr(target, "name", None) or str(args.target or "HER2 P04626"),
+        "reference": getattr(ref, "name", None) or str(args.reference or "trastuzumab"),
+        "budget": args.budget,
+        "candidates": args.candidates,
+        "seed": args.seed,
+        "online": bool(args.online),
+        "command": _command_line(args),
+    }
+    # The run id is settled before the pipeline starts so that every logged call
+    # carries it. Deciding it afterwards would leave the log unable to say which
+    # run a call belonged to, which is the first thing you want to filter on.
+    run_id = args.run_id or make_run_id(config)
+    config["run_id"] = run_id
+    calllog.set_log(calllog.CallLog(run_id=run_id, enabled=not args.no_log))
+
     cache = Cache(offline=not args.online)
     result = run_pipeline(
         target=target,
@@ -107,16 +124,7 @@ def cmd_run(args) -> int:
         cache=cache,
         timebox=args.timebox,
     )
-    config = {
-        "target": getattr(target, "name", None) or str(args.target or "HER2 P04626"),
-        "reference": getattr(ref, "name", None) or str(args.reference or "trastuzumab"),
-        "budget": args.budget,
-        "candidates": args.candidates,
-        "seed": args.seed,
-        "online": bool(args.online),
-        "command": _command_line(args),
-    }
-    paths = write_outputs(result, args.out, config=config, run_id=args.run_id,
+    paths = write_outputs(result, args.out, config=config, run_id=run_id,
                           report=not args.no_report)
     _print_report(result, target, ref, paths, cache)
 
@@ -135,6 +143,18 @@ def cmd_report(args) -> int:
     from .report import main as report_main
 
     return report_main([args.rundir])
+
+
+def cmd_logs(args) -> int:
+    """The log UI: what we asked an external thing, and what it said back."""
+    from .logview import main as logview_main
+
+    argv = []
+    if args.serve:
+        argv += ["--serve", "--port", str(args.port), "--refresh", str(args.refresh)]
+    if args.out:
+        argv += ["--out", args.out]
+    return logview_main(argv)
 
 
 def cmd_schema(args) -> int:
@@ -168,6 +188,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="pin the run directory name (default: timestamp + input hash)")
     r.add_argument("--no-report", action="store_true",
                    help="skip report.md / report.html, write the JSONL only")
+    r.add_argument("--no-log", action="store_true",
+                   help="do not append to the call log")
     r.set_defaults(func=cmd_run)
 
     s = sub.add_parser("schema", help="print the frozen design-record contract")
@@ -176,6 +198,13 @@ def build_parser() -> argparse.ArgumentParser:
     rp = sub.add_parser("report", help="re-render the report from an existing run")
     rp.add_argument("rundir", help="a run directory holding designs.jsonl")
     rp.set_defaults(func=cmd_report)
+
+    lg = sub.add_parser("logs", help="browse the call log: requests, responses, timings")
+    lg.add_argument("--serve", action="store_true", help="live view on localhost")
+    lg.add_argument("--port", type=int, default=8765)
+    lg.add_argument("--refresh", type=int, default=3, help="live refresh seconds")
+    lg.add_argument("--out", default=None, help="where to write the static page")
+    lg.set_defaults(func=cmd_logs)
 
     return p
 

@@ -213,10 +213,21 @@ def _live(
         env_bits.append(f"TSRK={tsr_k}")
     out = work_dir / "runs" / f"live-{weight}-s{seed}"
     env_bits.append(f"OUT=runs/live-{weight}-s{seed}")
-    subprocess.run(
-        ["env", *env_bits, "bash", str(script), "all"],
-        cwd=work_dir, check=True,
-    )
+    from .. import calllog
+
+    with calllog.active().call(
+        "foundry", "run_pipeline", stage="generate",
+        request={"env": env_bits, "script": str(script), "cwd": str(work_dir)},
+    ) as slot:
+        proc = subprocess.run(
+            ["env", *env_bits, "bash", str(script), "all"],
+            cwd=work_dir, check=True, capture_output=True, text=True,
+        )
+        slot["response"] = {
+            "returncode": proc.returncode,
+            "stdout_tail": (proc.stdout or "")[-2000:],
+            "stderr_tail": (proc.stderr or "")[-2000:],
+        }
     export = out / "designs.jsonl"
     if not export.exists():
         raise RuntimeError(f"live run finished but {export} is missing")
