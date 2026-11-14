@@ -1,10 +1,11 @@
 """The structure-confidence cutoff — OWNER: Rizve. Calibrated, not remembered.
 
-We were handed 454 VHH-antigen pairs **measured not to bind**, and 21 of them
-score AF3 ipTM >= 0.7. Those 21 rows are the most valuable thing in the
-challenge bundle: direct, measured proof that high structure confidence does
-not mean binding. A team that filters on ipTM >= 0.7 would have ordered all 21
-of them.
+The challenge bundle gives 454 shuffled, non-cognate VHH-antigen pairs
+(computational negatives, not SPR-measured: proof/audit_datasets.py claim C
+found no 454-row SPR table, and SPR-tested non-cognate pairs returned "no
+reportable fit", which is not confirmed non-binding). Roughly 21 of them score
+AF3 ipTM >= 0.7: evidence that high structure confidence does not mean
+binding. A team that filters on ipTM >= 0.7 would have taken all of them.
 
 So this module exists to make sure we never set that threshold from a round
 number someone remembered. Two states, and the scorer behaves differently in
@@ -93,7 +94,7 @@ class ConfidencePolicy:
                 )
                 note = (
                     f"confidence {conf:.2f} ignored — {why}, and high confidence "
-                    "is not allowed to raise a binding score (21 of 454 measured "
+                    "is not allowed to raise a binding score (21 of 454 shuffled non-cognate "
                     "non-binders clear ipTM 0.7)"
                 )
             else:
@@ -270,7 +271,7 @@ def main(argv: list[str] | None = None) -> int:
         prog="fourwells.calibrate",
         description="Set the structure-confidence cutoff from measured non-binders",
     )
-    ap.add_argument("negatives", type=Path, help="CSV of measured non-binders (the 454)")
+    ap.add_argument("negatives", type=Path, help="CSV of non-cognate negatives (the 454)")
     ap.add_argument("--positives", type=Path, help="CSV of measured binders, for the sensitivity cost")
     ap.add_argument("--conf-column", help="override the confidence column name")
     ap.add_argument("--target-specificity", type=float, default=0.95)
@@ -307,7 +308,7 @@ def main(argv: list[str] | None = None) -> int:
             "Calibrated against computational decoys, not measured non-binders. "
             "Separating shuffled pairs is an easier problem than the one we face, so "
             "this cutoff may still LOWER a binding score and may not raise one. "
-            "Point this at the 454 measured negatives to unlock that."
+            "Point this at the 454 non-cognate negatives to unlock that."
         )
     print(json.dumps(result, indent=2))
     print("\n" + result["headline"])

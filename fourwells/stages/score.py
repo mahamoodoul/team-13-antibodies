@@ -29,10 +29,10 @@ encoded in the weights below, not just written on a slide:
 
 ON STRUCTURE CONFIDENCE, which is the thing we are most trying not to get
 wrong: ipTM/pLDDT enter as *features with modest weight*, never as the score,
-and until the cutoff is calibrated against the 454 measured true negatives a
+and until the cutoff is calibrated against shuffled non-cognate pairs (computational negatives, not SPR-measured) a
 high confidence is not allowed to RAISE a binding score at all — only a low one
-may lower it. That asymmetry is the whole lesson of those 21 true negatives
-sitting at ipTM >= 0.7: high confidence is not evidence of binding, while low
+may lower it. That asymmetry is the whole lesson of the shuffled non-cognate
+pairs that still score ipTM >= 0.7: high confidence is not evidence of binding, while low
 confidence is still weak evidence against it. See `fourwells.calibrate`.
 
 A BIAS TO SAY OUT LOUD BEFORE A JUDGE FINDS IT: because the binding prior is
@@ -137,6 +137,12 @@ W_EPITOPE = {
 # not a coin flip, it is a long shot: HER2's ECD is large and domain IV is a
 # small part of it. Capping rather than guessing is the point.
 DE_NOVO_UNVERIFIED_EPITOPE = 0.10
+
+# Trastuzumab's own refold (boltz2, data/generated/baseline.json), measured the
+# same way as every design against the annotated 1N8Z epitope: 14 of 20 residues.
+# No real molecule touches all of them, so the axis must score a design against
+# the parent, not against 1.0. Rerun: scripts/epitope_control.py.
+PARENT_EPITOPE_OVERLAP = 0.70
 
 
 def _logistic(z: float) -> float:
@@ -390,8 +396,9 @@ def score_epitope(
         ev.update(basis="structural", n_contacts=len(got), epitope_overlap=round(overlap, 3))
         if target.epitope_note:
             ev["numbering_caution"] = target.epitope_note
-        # Overlap 1.0 ties the reference; less than full overlap loses ground.
-        score = _logistic(W_EPITOPE["epitope_overlap"] * (overlap - 1.0))
+        # Matching the parent's measured overlap ties the reference (0.5), the
+        # same value the parent gets on the prior path, so bases are comparable.
+        score = _logistic(W_EPITOPE["epitope_overlap"] * (overlap - PARENT_EPITOPE_OVERLAP))
         return score, ev, f"predicted complex covers {overlap:.0%} of the annotated domain IV epitope"
 
     if track == "de_novo":
