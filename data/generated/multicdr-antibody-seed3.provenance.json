@@ -1,0 +1,18 @@
+{
+  "weight": "antibody-2026-10-30",
+  "ckpt_name": "rfd4-proteina-antibody-2026-10-30-ema.ckpt",
+  "num_replicates": 100,
+  "batch_size": 1,
+  "seed": 3,
+  "compile": true,
+  "recycle_strategy": "high/front_loaded",
+  "input": "Data/21-multicdr/her2_multicdr.yaml",
+  "design_spec": "data/design-specs/her2_multicdr.yaml",
+  "task": "her2_multicdr",
+  "chain_of_interest": "B_1",
+  "track": "optimisation",
+  "image": "quay.io/apheris/oslo-hackathon:apheris-rfd4-proteina-v0.3.0-antibody-2026-10-30",
+  "designed_regions": "heavy chain CDRH1 (B26-35), CDRH2 (B50-66) and CDRH3 (B99-108); framework and the whole light chain retained",
+  "epitope_hotspots": ["C/572/CD", "C/573/CD1", "D/591/CG2", "D/593/NZ"],
+  "_reconstructed": "This batch was launched with an inline docker run rather than scripts/design_batch.sh, so no provenance.json was written at run time. Every field above was read back from the run's own outputs -- design/config.json for the parameters and inference_metrics/per_example_metrics.csv for the checkpoint name -- not from memory. Use scripts/design_batch.sh so this does not happen again."
+}
