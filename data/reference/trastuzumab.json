@@ -1,7 +1,7 @@
 {
   "_what": "Trastuzumab baseline + HER2 epitope. Every score in this challenge is relative to trastuzumab, and the <70% CDRH3 identity gate is computed against cdr_h3 below.",
 
-  "_verify_first": "The provided dataset (524k CDRH3 variants) contains the parent trastuzumab row. That row is AUTHORITATIVE for this challenge — confirm every field here against it before trusting these values, and fix this file if they disagree. Numbering scheme matters: cdr_h3 below is Kabat. If abguard or the dataset uses IMGT or Chothia, the CDRH3 boundaries shift and the identity calculation changes.",
+  "_verified": "DONE 2026-11-14 against the parent row of data/her2-trastuzumab/trastuzumab_her2_spr_all_768.csv on the VM. vh matches this file byte for byte. vl is now filled in from that row. The CDRH3 DID disagree and has been corrected — see cdrs_kabat.note.",
 
   "vh": {
     "sequence": "EVQLVESGGGLVQPGGSLRLSCAASGFNIKDTYIHWVRQAPGKGLEWVARIYPTNGYTRYADSVKGRFTISADTSKNTAYLQMNSLRAEDTAVYYCSRWGGDGFYAMDYWGQGTLVTVSS",
@@ -14,18 +14,30 @@
   },
 
   "vl": {
-    "sequence": null,
-    "verified": false,
-    "note": "NOT verified in this session — deliberately left null rather than written from memory, because a wrong VL silently corrupts length and identity checks. Take it from the provided dataset's parent row, or from DrugBank DB00072."
+    "sequence": "DIQMTQSPSSLSASVGDRVTITCRASQDVNTAVAWYQQKPGKAPKLLIYSASFLYSGVPSRFSGSRSGTDFTLTISSLQPEDFATYYCQQHYTTPPTFGQGTKVEIK",
+    "length": 107,
+    "verified": true,
+    "sources": ["parent row of trastuzumab_her2_spr_all_768.csv (authoritative for this challenge)"],
+    "note": "Constant across every row of both HER2 datasets — only CDRH3 varies in that screen."
+  },
+
+  "baseline_measurements": {
+    "kd_nM": 0.152,
+    "binding_result": "quantified_binding",
+    "source": "parent row, trastuzumab_her2_spr_all_768.csv",
+    "_use": "This is the number a design must beat on the binding axis. For calibration: of the 190 SPR-measured designs in that file, only 12 beat it — a 6.3% base rate. Any ranker we build has to beat 6.3% in its top 4, and that comparison is the enrichment slide."
   },
 
   "cdrs_kabat": {
     "cdr_h1": "GFNIKDTYIH",
     "cdr_h2": "RIYPTNGYTRYADSVKG",
-    "cdr_h3": "WGGDGFYAMDY",
+    "cdr_h3": "WGGDGFYAMD",
+    "cdr_h3_length": 10,
     "verified": true,
-    "source": "US app 20190194349 (CDR1/2/3 given explicitly with trastuzumab framework); cdr_h3 independently confirmed inside the vh sequence above as ...YYCSR-WGGDGFYAMDY-WGQGT...",
-    "note": "cdr_h3 is 11 aa. At the <70% identity ceiling, at least 4 of 11 positions must differ for an optimisation-track design to pass abguard. Conservative 1-2 point mutants WILL be rejected."
+    "source": "Parent row of trastuzumab_her2_spr_all_768.csv, and the same 10-mer convention in tz_her2_facs_3classes_524346.csv.",
+    "note": "CORRECTED from WGGDGFYAMDY (11 aa) to WGGDGFYAMD (10 aa). Both datasets place the trailing Y in the framework: the VH reads ...YYCSR-[WGGDGFYAMD]-YWGQGTLV... USE THE 10-MER. Every variant row in both files is a 10-mer, so an 11-mer parent makes length-mismatched comparisons against 524k rows and silently breaks identity scoring.",
+    "_mutation_threshold": "At the <70% ceiling on a 10-mer, 7/10 = 0.70 is NOT under the ceiling, so at most 6 positions may match: at least 4 of 10 must differ. (Same count as the old 11-mer reading, but reached differently — do not assume the arithmetic transfers if the loop length changes again.) Conservative 1-2 point mutants WILL be rejected.",
+    "_still_unverified": "Whether abguard itself uses this same boundary. It numbers with immunum; if that yields IMGT or Chothia bounds the loop shifts again. Confirm against abguard once it is available on the VM — it was not installed as of 10:50."
   },
 
   "her2": {
