@@ -114,7 +114,22 @@ def resolve_target(spec: str | None, cache=None) -> Target:
             return Target(
                 identifier=spec.upper(),
                 kind="uniprot",
-                epitope_residues=[c["residues"] for c in her2.get("contact_regions", [])],
+                # Only the regions the folded input can actually contain. The
+                # 581-590 loop is annotated (8PWH, lower confidence) but the
+                # yaml splits HER2 at exactly that gap -- chains C 489-580 and
+                # D 591-607 -- because input validation rejects a numbering gap
+                # inside one chain. Scoring overlap against residues no refold
+                # can reach caps every design at 20/30 and depresses the axis
+                # for everything, trastuzumab included: the parent's own refold
+                # scores 0.467 overlap with the gap counted and 0.700 without.
+                # `scorable` is set per region in the reference file, with the
+                # reason, so dropping one is a recorded decision and not a
+                # silent filter.
+                epitope_residues=[
+                    c["residues"]
+                    for c in her2.get("contact_regions", [])
+                    if c.get("scorable", True)
+                ],
                 epitope_note=her2.get("_caution"),
                 structures=her2.get("complex_structures", []),
                 meta={"domain": her2.get("trastuzumab_epitope_domain")},

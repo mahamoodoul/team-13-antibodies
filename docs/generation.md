@@ -294,6 +294,24 @@ sits below almost the entire prior range. The top 15 of the current ranking are 
 prior-based, and that is not a coverage gap we can fold our way out of: every additional fold
 *demotes* the design it measures. Spending more GPU makes this worse, not better.
 
+**Cause 1 is now fixed, because it is a factual error rather than a scoring choice.** Nobody
+would defend scoring overlap against residues the input cannot contain, and the reference file
+already documented that 581–590 is the chain gap. Those regions now carry `scorable` per region
+with the reason, and `targets.py` honours it — the loop stays annotated, it is simply not
+scored:
+
+| | structural range | median | unfolded above the structural ceiling |
+| --- | --- | --- | --- |
+| counting 581–590 | 0.029 – 0.148 | 0.134 | 142 / 146 |
+| scorable regions only | 0.029 – **0.294** | 0.259 | **64 / 146** |
+
+That halves the problem on its own, and `optB-her2_cdrh3_10` — one of the designs we folded —
+enters the shortlist at rank 2 on measured evidence rather than inference. **Cause 2, the
+reference point, is deliberately left alone:** moving it from "contacts every residue" to "the
+parent's own measured overlap" is a judgment about what the axis means, which belongs to
+whoever owns the axis. The measurement is here, the calibration point is committed, and the
+change is one line.
+
 The fix belongs in `score.py`, which is Rizve's. What generation owes it is the calibration
 point, and that is now committed: the parent's measured contacts, in both models, in
 `baseline.json` and `baseline-protenix-v2.json`.

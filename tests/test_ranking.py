@@ -692,3 +692,53 @@ class ScfvLinkerFeasibility(unittest.TestCase):
             self.assertLess(
                 250 - vh_plus_vl, MIN_SCFV_LINKER, "and no legal linker exists"
             )
+
+
+class ScorableEpitopeRegions(unittest.TestCase):
+    """The epitope axis must not score against residues the input cannot hold.
+
+    HER2 reaches the folding models as chains C 489-580 and D 591-607, because
+    input validation rejects a numbering gap inside one chain. 581-590 is that
+    gap. It is a real annotated contact region (8PWH, lower confidence) and no
+    refold we run can touch it, so counting it caps overlap at 20/30 for every
+    design and for trastuzumab alike -- the parent's own refold scores 0.467
+    overlap with it counted and 0.700 without.
+    """
+
+    def test_the_unreachable_loop_is_excluded_from_scoring(self):
+        from fourwells.targets import resolve_target
+
+        t = resolve_target("P04626")
+        self.assertIn("557-561", t.epitope_residues)
+        self.assertIn("570-573", t.epitope_residues)
+        self.assertIn("593-603", t.epitope_residues)
+        self.assertNotIn(
+            "581-590",
+            t.epitope_residues,
+            "absent from the folded input, so it cannot be contacted or scored",
+        )
+
+    def test_the_scorable_epitope_is_twenty_residues(self):
+        from fourwells.targets import resolve_target
+
+        t = resolve_target("P04626")
+        n = 0
+        for span in t.epitope_residues:
+            lo, hi = span.split("-")
+            n += int(hi) - int(lo) + 1
+        self.assertEqual(n, 20, "557-561 (5) + 570-573 (4) + 593-603 (11)")
+
+    def test_the_region_is_still_annotated_just_not_scored(self):
+        """Dropping it from scoring must not drop it from the record."""
+        import json
+        from pathlib import Path
+
+        blob = json.loads(
+            (Path(__file__).resolve().parent.parent
+             / "data/reference/trastuzumab.json").read_text()
+        )
+        regions = blob["her2"]["contact_regions"]
+        gap = [c for c in regions if c["residues"] == "581-590"]
+        self.assertEqual(len(gap), 1, "still carried as annotation")
+        self.assertFalse(gap[0]["scorable"])
+        self.assertIn("_not_scorable_why", gap[0], "and it says why")
