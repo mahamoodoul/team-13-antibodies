@@ -18,7 +18,7 @@ digest, start time.
 | `optA` | `her2-novel-2026-11-09` | 100 | 97% | 90 | 5 | 43 |
 | `optB` | `her2-2026-11-07`, `sequenceTsrK=1` | 100 | 100% | 73 | **24** | 20 |
 | `multicdr` | `antibody-2026-10-30` | 100 | 94% | **99** | 0 | — |
-| `denovo` | `antibody-2026-10-30` | 100 | — | see below | — | — |
+| `denovo` | `antibody-2026-10-30` | 100 | — | **0**, see §5 and §6 | — | — |
 
 "Submittable" means it passes the real challenge filter: CDRH3 differing at 2+ positions from
 every one of the 525,063 provided CDRH3s, **and** at least 4 of 10 positions changed from the
@@ -44,7 +44,7 @@ OUT=runs/optA WEIGHT=her2-novel-2026-11-09 SEED=1 MODEL=boltz2 MAXFOLD=25 \
 
 100 designs took 11.5 minutes with `--compile true`, against the documented ~30 s per design.
 
-## Five things we measured that changed what we did
+## Six things we measured that changed what we did
 
 ### 1. The challenge filter belongs in front of the GPU, not after it
 
@@ -153,6 +153,81 @@ driving the verdict since we do not know which abguard uses. Validated on known 
 self-identity 1.0, VH against VL 0.289, and a VH with CDRH3 replaced by ten alanines 0.925,
 which is 111/120 exactly.
 
+### 6. The construct-length failure is the de novo batch, and no linker saves it
+
+Flagged at 12:45 as "the entire `multicdr` batch is failing the length gate, all 100,
+257–259 aa against the 250 limit", with the diversity hypothesis declared gone and the fix
+handed to generation. The measurement is real and the arithmetic is right. It is the wrong
+batch.
+
+Run the gate over all 401 records and the failures sort cleanly:
+
+| batch | failing | why |
+| --- | --- | --- |
+| `denovo` | **100 / 100** | `length 257-259 (construct) > 250` |
+| `multicdr` | **1 / 100** | one design 1 substitution from a provided sequence |
+| `optA` | 16 / 100 | novelty and identity ceiling |
+| `optB` | 32 / 100 | novelty, identity ceiling, one unpaired cysteine |
+
+`multicdr` is the *highest-yielding* batch we have, 99 of 100 through every gate. The
+diversity hypothesis was never lost, and it needs no regeneration — it is available to the
+portfolio step now.
+
+The cause was also the reverse of the diagnosis. Redesigning three heavy CDRs did not grow
+the VH: `multicdr` is VH 120 + VL 107 = 227, **shorter** than `optA` and `optB`, because the
+loops were rebuilt at the parent's lengths. What grew is `denovo`, VH 129–131 + VL 113 =
+242–244, and it grew for a reason recorded in §5 — we designed all six CDRs *at maximum
+length* specifically to try to close the de novo identity gap.
+
+That choice now has two measured costs and no benefit. It did not close the gap (identity
+0.779–0.823 against a 0.70 ceiling) and it pushed the ordered construct over 250.
+
+**The proposed fix cannot work, and the reason is worth knowing.** Dropping the linker from
+(G4S)3 to (G4S)2 buys exactly 5 residues, which is not enough:
+
+| linker | aa | construct | over 250 |
+| --- | --- | --- | --- |
+| `(G4S)3` | 15 | 257–259 | **100 / 100** |
+| `(G4S)2` | 10 | 252–254 | **100 / 100** |
+| `(G4S)1` | 5 | 247–249 | 0 / 100 |
+| direct | 0 | 242–244 | 0 / 100 |
+
+Only a 5-residue linker or direct ligation fits — and at those lengths the molecule is no
+longer an scFv. The linker length that permits intramolecular VH–VL pairing is a measured
+constant, not a free parameter:
+
+- An scFv with a linker of **3–12 residues cannot fold into a functional Fv domain** and
+  instead pairs with a second copy to form a bivalent diabody; below 3 it forms triabodies
+  and tetramers ([Atwell 1999, PMID 10436086](https://pubmed.ncbi.nlm.nih.gov/10436086/);
+  [review, PMID 12856620](https://pubmed.ncbi.nlm.nih.gov/12856620/)).
+- Measured directly across a linker series: fragments with linkers **longer than 11 residues
+  remained monomeric**, while 11, 6 and 2 formed multimers
+  ([Alfthan 1995, PMID 8577701](https://pubmed.ncbi.nlm.nih.gov/8577701/)).
+- On our own target: an **anti-ErbB2 (HER2) scFv was converted to a diabody precisely by
+  shortening its linker from 15 to 5 aa** — "the shorter linker prevents intramolecular
+  pairing of VH and VL" — and the resulting bivalent molecule showed dissociation rate
+  constants up to **15-fold slower** than its parent scFv
+  ([Nielsen 2000, PMID 11103810](https://pubmed.ncbi.nlm.nih.gov/11103810/)).
+
+So (G4S)2 at 10 aa sits inside the diabody window and still does not fit; (G4S)1 at 5 aa fits
+and is the canonical way to *build* a HER2 diabody. Either way it is a format change, not a
+length trim — and the second one would hand Adaptyv a bivalent molecule in an SPR assay,
+where that 15-fold slower off-rate is avidity from the format rather than affinity from the
+design. We would be improving our own measured number by changing the molecule's valency.
+That is the opposite of what we are trying to show.
+
+`denovo` therefore stays what §5 already called it: a fourth hypothesis on a different
+framework, labelled for what it is. It was unsubmittable as a de novo entry on identity, and
+under the strict reading of the length rule it is unsubmittable as an optimisation entry too.
+
+**One caveat, because the length rule is ambiguous exactly like the novelty rule.** The 250 aa
+limit is stated as combined VH + VL. On that reading `denovo` passes at 242–244 and only the
+linker pushes it over; the gate measures the whole construct, which is the strict reading, and
+`_scfv_construct` records both numbers for every design. Our three optimisation batches clear
+*both* readings — 227 on VH + VL, 242 on the construct, 8 aa of margin on the stricter one —
+so nothing we would actually submit depends on which reading is right. Only `denovo` does, and
+`denovo` is already out on identity.
+
 ## Portfolio note
 
 All four current picks come from `optB` and are CDRH3-only redesigns, so they share one
@@ -164,9 +239,14 @@ step genuinely uncorrelated options:
   trastuzumab makes through the other two loops. Honest caveat: the affinity cliff was measured
   on CDRH3 variants, so it does not extrapolate here — these sit outside the domain of that
   measurement. That is a real unknown and also precisely why the failure mode is uncorrelated.
-- `denovo` keeps a different framework entirely.
+- `denovo` keeps a different framework entirely — but it is **out**, on identity (§5) and
+  again on construct length (§6). It is not an option the portfolio step can spend a slot on.
 
-The choice between them belongs to the portfolio step, not to generation.
+So after §6 there is exactly one uncorrelated hypothesis left, and it is `multicdr`: 99 of 100
+through every gate, three heavy CDRs moved rather than one, 227 aa on VH + VL. If the four
+picks are to stop being four variants of one loop family, that is the batch they have to come
+from. The choice still belongs to the portfolio step, not to generation — but generation is no
+longer supplying two alternatives, it is supplying one.
 
 ## Two things still unresolved
 
