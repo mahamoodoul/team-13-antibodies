@@ -44,7 +44,7 @@ OUT=runs/optA WEIGHT=her2-novel-2026-11-09 SEED=1 MODEL=boltz2 MAXFOLD=25 \
 
 100 designs took 11.5 minutes with `--compile true`, against the documented ~30 s per design.
 
-## Seven things we measured that changed what we did
+## Eight things we measured that changed what we did
 
 ### 1. The challenge filter belongs in front of the GPU, not after it
 
@@ -309,6 +309,51 @@ compete with trastuzumab for its epitope and can never be S-tier. The portfolio 
 take that trade knowingly — and it should pick from the 13 that do compete, which is a thing
 it can only do if the axis is referenced to the parent rather than to a molecule that
 contacts every residue.
+
+### 8. The strict novelty reading moves the floor from 4 substitutions to 5, and empties the band
+
+Rizve's ask was precise: *"the target isn't fewest substitutions from the parent — it's fewest
+parent substitutions that also clear ≥3 from all 525k."* Measured over the pool, designs
+passing every gate **and** sitting at distance ≥3 from all 525,063 provided CDRH3s:
+
+| batch | 5 | 6 | 7 | 8 | 9 | 10 | total |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `optA` | 2 | 15 | 25 | 30 | 2 | 0 | 74 |
+| `optB` | 4 | 6 | 12 | 8 | 6 | 0 | 36 |
+| `multicdr` | 11 | 19 | 19 | 25 | 20 | 1 | 95 |
+
+**Nothing at 4 or fewer CDRH3 substitutions survives at all.** §2 found 24 `optB` designs in the
+4–5 band under distance ≥2; requiring ≥3 removes every 4-substitution design, because
+4-substitution designs are exactly where collisions with the 524K screen live — which is §2's
+own point, now with the strict reading applied. So the measured cost of the strict reading is
+not only the ~2% joint score Rizve priced: **it moves the near-parent floor from 4 to 5.**
+
+**And the `multicdr` column must not be read as "closest to the parent".** That count is CDRH3
+substitutions only, and `multicdr` moves three loops. Decomposed against the parent VH:
+
+| batch | VH subs (median) | CDRH1 | CDRH2 | CDRH3 | framework |
+| --- | --- | --- | --- | --- | --- |
+| `optA` | 7 | 0 | 0 | 7 | 0 |
+| `optB` | 6 | 0 | 0 | 6 | 0 |
+| `multicdr` | **15** | 3 | 5 | 7 | 0 |
+
+A `multicdr` design at 5 CDRH3 substitutions carries a median 15 VH substitutions in total, so
+it is further from the parent than an `optB` design at 5, not closer. The affinity cliff was
+measured on CDRH3 variants, so it does not extrapolate there — the same caveat the portfolio
+note already carries, and the reason this table belongs next to that one. (All three batches
+leave the framework untouched, which confirms RFD4 holds it fixed as documented.)
+
+So the genuinely near-parent, CDRH3-only, submittable-under-the-strict-reading population is
+**six designs**: four from `optB` and two from `optA`.
+
+**We are not generating into that band, and the reason is a measurement, not a shortage of
+time.** Mahamodul measured 1 of 131 SPR-measured submittable designs beating trastuzumab on
+affinity, and concluded we should not be selling affinity gains — stability and epitope are
+where the leverage is. Chasing the near-parent corner is chasing the one axis we have already
+decided not to sell, on a cliff whose shallow end the novelty rule has now closed anyway. The
+GPU is better spent folding `multicdr`, which is where the epitope axis actually discriminates
+and where the one uncorrelated hypothesis needs measured evidence (§7). That is what it is
+doing.
 
 ## Portfolio note
 
