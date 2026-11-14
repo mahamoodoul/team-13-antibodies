@@ -1,11 +1,12 @@
+__pycache__/
+.claude/
+.DS_Store
+.env
 *.env
 *.pem
 *.private.json
+*.pyc
 *.transcript.zip
-.DS_Store
-.claude/
-.env
-TEAM-13-SETUP.md
 chat-history/
 credentials.private.json
 japanfold.env
@@ -14,4 +15,5 @@ results/
 setup/
 shortlist-design.html
 team-13
+TEAM-13-SETUP.md
 team-13*

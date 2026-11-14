@@ -1,0 +1,3 @@
+# The spine runs on the standard library alone, by design: the demo must work
+# on a judge's laptop with no network. Add pinned deps here as stages need
+# them, and keep them out of the critical path.

@@ -1,9 +1,7 @@
 {
-  "_what": "Trastuzumab baseline + HER2 epitope. Every score in this challenge is relative to trastuzumab, and the <70% CDRH3 identity gate is computed against cdr_h3 below.",
+  "_what": "Trastuzumab baseline + HER2 epitope. Every score in this challenge is relative to trastuzumab, and the CDRH3 identity gate is computed against cdr_h3_gate below.",
 
-  "_verified": "Checked against the provided data on the VM, 14 Nov 2026. The parent row is NOT in the 524k FACS table (that table holds variants only) — it is in trastuzumab_her2_spr_all_768.csv, where cdrh3 == WGGDGFYAMD appears 8 times as the reference antibody. vh below matches that row exactly. vl was filled in from it. Rebuild with ruhit/gen/scripts/build_fixtures.py, which writes ~/data/tidy/trastuzumab_parent.json.",
-
-  "_numbering_warning": "cdrs_kabat below is Kabat (11-residue cdr_h3). The provided tables and the challenge novelty filter use a 10-residue CDRH3, WGGDGFYAMD. Compute the <70% identity gate on the 10-mer — see cdr_h3_gate.",
+  "_verified": "DONE 2026-11-14 against the provided tables on the VM, by two of us independently, who agreed. vh matches byte for byte. vl is filled in from the parent row. The CDRH3 DID disagree and is corrected to the 10-mer — see cdrs_kabat.note and cdr_h3_gate. One further correction: the parent row is NOT in the 524k FACS table, as an earlier version of this file assumed; that table holds variants only, and the parent is in trastuzumab_her2_spr_all_768.csv. Rebuild the derived numbers with ruhit/gen/scripts/build_fixtures.py, which writes ~/data/tidy/trastuzumab_parent.json.",
 
   "vh": {
     "sequence": "EVQLVESGGGLVQPGGSLRLSCAASGFNIKDTYIHWVRQAPGKGLEWVARIYPTNGYTRYADSVKGRFTISADTSKNTAYLQMNSLRAEDTAVYYCSRWGGDGFYAMDYWGQGTLVTVSS",
@@ -11,7 +9,8 @@
     "verified": true,
     "sources": [
       "DrugBank DB00072 (anti-HER2 heavy chain)",
-      "US patent 11920136 SEQ ID NO:168"
+      "US patent 11920136 SEQ ID NO:168",
+      "parent row of trastuzumab_her2_spr_all_768.csv — matches the two above exactly"
     ]
   },
 
@@ -19,25 +18,15 @@
     "sequence": "DIQMTQSPSSLSASVGDRVTITCRASQDVNTAVAWYQQKPGKAPKLLIYSASFLYSGVPSRFSGSRSGTDFTLTISSLQPEDFATYYCQQHYTTPPTFGQGTKVEIK",
     "length": 107,
     "verified": true,
-    "sources": [
-      "trastuzumab_her2_spr_all_768.csv, vl_sequence of the 8 rows with cdrh3 == WGGDGFYAMD",
-      "identical in all 524,346 rows of tz_her2_facs_3classes_524346.csv (the light chain was never varied)"
-    ]
+    "sources": ["parent row of trastuzumab_her2_spr_all_768.csv (authoritative for this challenge)"],
+    "note": "Constant across every row of both HER2 datasets — only CDRH3 varies in that screen. Independently confirmed as chain A of the refold output."
   },
 
   "length_budget": {
     "vh_plus_vl": 227,
     "abguard_limit": 250,
     "headroom_aa": 23,
-    "_use": "An scFv design that keeps both domains at parent length has 23 aa of slack before abguard rejects it on length. A linker counts against this."
-  },
-
-  "measured_baseline": {
-    "binding_kd_nM": [0.02851802, 0.0378713, 0.07916459, 0.123, 0.146, 0.152, 0.165, 0.178],
-    "n": 8,
-    "median_kd_nM": 0.134,
-    "source": "trastuzumab_her2_spr_all_768.csv, the 8 reference rows",
-    "_use": "This is the binding number a design must beat to score on that axis. It is sub-nanomolar, which is why the plan treats affinity as the hard axis and thermostability as the beatable one."
+    "_use": "An scFv design that keeps both domains at parent length has 23 aa of slack before abguard rejects it on length. An scFv linker counts against this, and a typical (G4S)3 linker is 15 aa, so the budget is real but not tight."
   },
 
   "cysteines": {
@@ -46,29 +35,50 @@
     "_use": "Both domains carry exactly their canonical intra-domain pair. A design with an odd count in either domain has an unpaired cysteine and abguard rejects it."
   },
 
+  "baseline_measurements": {
+    "kd_nM_all": [0.02851802, 0.0378713, 0.07916459, 0.123, 0.146, 0.152, 0.165, 0.178],
+    "n": 8,
+    "median_kd_nM": 0.1345,
+    "best_kd_nM": 0.02851802,
+    "worst_kd_nM": 0.178,
+    "binding_result": "quantified_binding",
+    "source": "the 8 rows of trastuzumab_her2_spr_all_768.csv whose cdrh3 == WGGDGFYAMD",
+    "_use": "This is the number a design must beat on the binding axis. Quote the median, 0.13 nM, and say it is a median of 8 measurements — the spread is 6x, so a design at 0.15 nM has not clearly beaten anything.",
+    "_base_rate": {
+      "designs_beating_median": 6,
+      "designs_total": 182,
+      "rate": 0.033,
+      "_derivation": "Of the 190 quantified_binding rows, 8 ARE trastuzumab's own reference rows, leaving 182 genuine variant designs. 6 of those 182 beat the 0.1345 nM median, so the base rate is 3.3%. Against a single reference row (0.152 nM) it is 7/182 = 3.8%.",
+      "_correction": "An earlier version of this file said 12 of 190 = 6.3%. That counted trastuzumab's own 8 reference rows as designs: 7 real designs beat 0.152, plus 5 trastuzumab rows that beat another trastuzumab row, equals 12. Do not put 6.3% on the enrichment slide — the pool base rate is 3.3%, and a judge who recomputes it will find 182, not 190.",
+      "_use": "This is the denominator of the enrichment claim. Our ranker's top-4 hit rate is measured against 3.3%."
+    },
+    "_how_hard_binding_is": "Median KD across the 182 designs is 79.5 nM against trastuzumab's 0.13 nM, a ~590x gap, and exactly 1 of 182 beats trastuzumab's best single measurement. This is the evidence for the plan's call that affinity is the hard axis and thermostability the beatable one."
+  },
+
   "cdrs_kabat": {
     "cdr_h1": "GFNIKDTYIH",
     "cdr_h2": "RIYPTNGYTRYADSVKG",
-    "cdr_h3": "WGGDGFYAMDY",
+    "cdr_h3": "WGGDGFYAMD",
+    "cdr_h3_length": 10,
     "verified": true,
-    "source": "US app 20190194349 (CDR1/2/3 given explicitly with trastuzumab framework); cdr_h3 independently confirmed inside the vh sequence above as ...YYCSR-WGGDGFYAMDY-WGQGT...",
-    "note": "cdr_h3 here is the 11-aa Kabat call. The challenge does NOT use it — see cdr_h3_gate below."
+    "source": "Parent row of trastuzumab_her2_spr_all_768.csv, and the same 10-mer convention in tz_her2_facs_3classes_524346.csv.",
+    "note": "CORRECTED from WGGDGFYAMDY (11 aa) to WGGDGFYAMD (10 aa). Both datasets place the trailing Y in the framework: the VH reads ...YYCSR-[WGGDGFYAMD]-YWGQGTLV... USE THE 10-MER. Every variant row in both files is a 10-mer, so an 11-mer parent makes length-mismatched comparisons against 524k rows and silently breaks identity scoring. Confirmed a third way by the generator: Data/12-her2/her2_cdrh3.yaml designs heavy-chain B residues 99-108, ten positions, and refold output shows designs reading YYCSR-[WGPPYFYAMD]-YWGQGT against the parent's YYCSR-[WGGDGFYAMD]-YWGQGT."
   },
 
   "cdr_h3_gate": {
     "sequence": "WGGDGFYAMD",
     "length": 10,
-    "verified": true,
-    "source": "The cdrh3 column of both provided tables, and Data/12-her2/her2_cdrh3.yaml, which designs heavy-chain B residues 99-108 — ten positions.",
-    "_use": "Compute every identity and novelty check against this 10-mer, because it is what the provided tables and abguard are defined against.",
+    "_use": "Compute every identity and novelty check against this 10-mer, because it is what the provided tables and the challenge filter are defined against.",
     "optimisation_track_rules": {
-      "max_identity_to_trastuzumab": 0.70,
-      "min_positions_changed": 3,
+      "min_positions_changed_SAFE": 4,
+      "_threshold_is_ambiguous": "Our two sources disagree on the ceiling. docs/brief.md says '<70% CDRH3 identity', under which 7/10 matches = 70% does NOT pass and at least 4 of 10 must differ. The Apheris tutorial (12-her2.md) says 'at most 70% identical ... at least 3 of 10 positions changed', under which 3 differences suffice. Require 4 or more differences: it satisfies both readings, and the cost is a slightly smaller candidate pool. A design with exactly 3 differences is a coin flip on a rule we cannot test until abguard is available.",
       "min_differences_from_every_provided_sequence": 2,
       "provided_sequence_count": 525063,
-      "_note": "At most 70% identity over 10 positions means at least 3 must differ. The design must ALSO differ at 2+ positions from every one of the 525,063 provided CDRH3s, so a design that merely rediscovers a screened variant is rejected. Conservative 1-2 point mutants WILL be rejected."
+      "_novelty_note": "The design must ALSO differ at 2+ positions from every one of the 525,063 provided CDRH3s, so a design that merely rediscovers a screened variant is rejected. This is why the conservative and balanced generator settings are nearly useless to us: 21% of their designs are known binders and only 6% clear the filter.",
+      "_conservative_mutants_rejected": "Conservative 1-2 point mutants WILL be rejected. The rule is a floor on how much we must change, not a ceiling."
     },
-    "reference_set": "~/data/tidy/provided_cdrh3_universe.txt on the VM — all 525,063 unique provided CDRH3s, one per line, for the novelty check."
+    "reference_set": "~/data/tidy/provided_cdrh3_universe.txt on the VM — all 525,063 unique provided CDRH3s (524,346 FACS + 754 SPR, overlapping by 37), one per line, for the novelty check.",
+    "_still_unverified": "Whether abguard itself uses this same boundary. It numbers with immunum; if that yields IMGT or Chothia bounds the loop shifts again. Confirm against abguard once it is available on the VM — it was not installed as of 10:50."
   },
 
   "her2": {
@@ -82,6 +92,7 @@
       {"residues": "581-590", "source": "8PWH only — a domain IV loop not resolved in earlier structures; MD suggests it stays associated with trastuzumab", "confidence": "lower"}
     ],
     "_use": "De novo designs must be epitope-conditioned on these residues. A binder that hits HER2 anywhere else cannot compete with trastuzumab, so it can never be S-tier however tightly it binds. Use these as hotspots for RFD4-Proteina conditioning.",
-    "_caution": "Residue numbering is for full-length HER2 including signal peptide (UniProt P04626). Confirm the offset against whatever construct the generation model and abguard expect before using these as hotspot indices — an off-by-22 (signal peptide) error here is easy and silent."
+    "_numbering_resolved": "The off-by-22 signal-peptide worry does not apply. Data/12-her2/her2_cdrh3.yaml carries HER2 as chains C (residues 489-580) and D (591-607) in full-length UniProt P04626 numbering, the same scheme as the contact_regions above, and its four conditioning hotspots (C/572/CD, C/573/CD1, D/591/CG2, D/593/NZ) fall inside those regions. The chain split at 581-590 is the unresolved loop, omitted because input validation rejects a numbering gap within one chain.",
+    "generator_hotspots": ["C/572/CD", "C/573/CD1", "D/591/CG2", "D/593/NZ"]
   }
 }
