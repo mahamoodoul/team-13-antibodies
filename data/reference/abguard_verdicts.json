@@ -1,0 +1,1037 @@
+{
+ "note": "A verdict applies only to a design whose construct sha256 matches.",
+ "run_at": "2026-11-14T13:29:58+00:00",
+ "table": {
+  "kind": "scfv",
+  "n_pass": 197,
+  "n_rows": 205
+ },
+ "tool": "abguard 0.1.0 / immunum 2.0.0, team-validate --drop, bundled reference",
+ "verdicts": {
+  "multicdr-her2_multicdr_0": {
+   "reason": null,
+   "sha256": "3aae38e48e226d7459a628fcab1ac987290bbbb63dfbbb5c54c3467d97a10cf0",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_1": {
+   "reason": null,
+   "sha256": "d697e5caabe7fededb3df26bd36d9119a1c166a87c969a3673a1e518fe92e0c0",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_10": {
+   "reason": null,
+   "sha256": "9d8b558dbea19ffed0640cd401169d7248c1abd95d480dcb65ad3312f7da59fb",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_11": {
+   "reason": null,
+   "sha256": "0883a6f6d7effec5eb3d2e4ce813d1160378c835e26d58ee49454d522ea5e976",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_12": {
+   "reason": null,
+   "sha256": "7598254f88149b2de2b9b78c448949da5a6291b5307754042aab4ca8ce794c4f",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_13": {
+   "reason": null,
+   "sha256": "b60064667dfb5abd4ccea95e6e3d60c5b015ccf2fd7c45d41d0b86fd69af58ac",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_14": {
+   "reason": null,
+   "sha256": "c97d01a363d8a5e113d4c0bbfe5fb7215da24c89068835e624cd36a84461fa07",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_15": {
+   "reason": "novelty: CDRH3 SRSGYYGYSAMDY is 2 mutation(s) from SRSDYYGYAMDY in pdb:10ie_H; a novel design needs at least 3",
+   "sha256": "c8252f51f45489946dcffec2056677fd3f04efd1d6b2f947050463fabee0624f",
+   "status": "fail"
+  },
+  "multicdr-her2_multicdr_16": {
+   "reason": null,
+   "sha256": "b03857f7a538388e10c50766cab6550636578d985589a618d36e332c9f2c9bce",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_17": {
+   "reason": null,
+   "sha256": "88bc27ccc56de118d070fd6ecbec37f3214eed5db40730dd3f3e0a5f2116dd2e",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_18": {
+   "reason": null,
+   "sha256": "c72dc657784196a838966cf9ab5e429dfa6fb6f7db313619c5acaf827c8be859",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_19": {
+   "reason": null,
+   "sha256": "77495c4a437e4ff99d1057f1d834f4fa7a297c9fd714e15eb89cd9c9529e9117",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_2": {
+   "reason": null,
+   "sha256": "2be25a38d840c37e40e31a9544810f8bb1e5bc4707596e9ca1eb3baafe566505",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_20": {
+   "reason": null,
+   "sha256": "abe6bc8733cc09e73d4741f0986021587240d8422f23645723b302160107436f",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_21": {
+   "reason": "novelty: CDRH3 SRSYGSGDYYFDY is 2 mutation(s) from SRNYGSGYYFDY in uspto:uspto_AFC06348; a novel design needs at least 3",
+   "sha256": "ce2c2db918072c600dfb6d1b0fb6e9515696db4c5bc4883b5bd496522046df9f",
+   "status": "fail"
+  },
+  "multicdr-her2_multicdr_22": {
+   "reason": null,
+   "sha256": "975b9023342fc9fbaaeb0b813b0c344ae5cfb0e30b62488f76fd03d9aacd846e",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_23": {
+   "reason": null,
+   "sha256": "66e0d21af667ae18e2834fd1c201b82a1b80e50f6b0b2e2dd302981c96f3a41c",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_24": {
+   "reason": null,
+   "sha256": "3da0b872457a11a2d579164c9bbf05fa64c60d8b68ba437f0ce5692abf95a3d0",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_26": {
+   "reason": null,
+   "sha256": "80a31b43c4362b240942f3fab556e0d432aa237ffe012797eefe91a22cdf1f02",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_27": {
+   "reason": null,
+   "sha256": "c9ba92f068c2d3287cc0ed8cc66a70547b5873ba8542d92f15250b7acb3d1762",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_28": {
+   "reason": null,
+   "sha256": "44dc422a1f21a7c9fa9929178f5ae14a90407be5c8994c772b08263ded2db31a",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_29": {
+   "reason": null,
+   "sha256": "0cfbb4240a9a1b815bab414ca9856ca461aeb65a29c2883c8b12d2ce5d452983",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_30": {
+   "reason": null,
+   "sha256": "4dd12788015479609666e31131f61fcf34aa2922014f4cef88ea7199296ee2ca",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_31": {
+   "reason": null,
+   "sha256": "56b96ba5bd2d6fdcb463ece7c800fdf0c2915ac8eb2b78cfb46f2e71df407788",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_32": {
+   "reason": null,
+   "sha256": "96f8f6a981bbccdbd3a93e9547100d611a0ace730ad8acf3d06397b8eb776da7",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_33": {
+   "reason": null,
+   "sha256": "f85724849e15519dedf3622ff5b294a1c56693ab78ccf4f9247b866fcbf3eb52",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_34": {
+   "reason": null,
+   "sha256": "8618d52bd14150ac2fc490aeb756d7178982617a74d590a0f64e813d7ab9695d",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_35": {
+   "reason": null,
+   "sha256": "3f9005e5a1800e5da2e5ab11ddfa9dd5eed5ff07bb0b9932ed9f8e0035c48b6d",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_36": {
+   "reason": null,
+   "sha256": "c1bf68abfdd64bc9292a2f616a4ac3fc77ab2d8040f79da5bbb70e96291f6886",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_37": {
+   "reason": null,
+   "sha256": "c49303269f754a9202ac9353d1c152938d199d6fac26081d7c5745b3a2c6a291",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_38": {
+   "reason": null,
+   "sha256": "6515c548b24dcb28ad03e47d4f1b7f81f87e905c01f91f3e8a7e2ee8916eef39",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_39": {
+   "reason": null,
+   "sha256": "d666286cda5176fdebb273a15c4dbd866521e9e05dbd2e43554bc787104822db",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_4": {
+   "reason": null,
+   "sha256": "46b5e62770913feb9cbea095c43d11fc832d4d20bb860fa3d4cc2e71e5085fb4",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_40": {
+   "reason": null,
+   "sha256": "b8a06ab1b1e1acc1edfc86c6dfd404cddd1d4814bf86cb5c9a0ee60e339890ed",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_41": {
+   "reason": null,
+   "sha256": "88e7cfd8887c6e9f370178e7789717bb1b633441169c8e173f6a87930e015018",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_42": {
+   "reason": null,
+   "sha256": "15a474c16018a654e1d006bbb6eb57dcafc80ddd5597ba9255867ddbea8dc4be",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_43": {
+   "reason": null,
+   "sha256": "3b75c4c3405b9c4bf555e28b0363c95e19db82f468035a43303f2ace9cd6566b",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_44": {
+   "reason": null,
+   "sha256": "bb7ead6834b9a77e929a67c6fed3f3598bb747e70a8408094bb6ef729edf162e",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_45": {
+   "reason": null,
+   "sha256": "afbac8eafb7a66811089c06edc65bf8f7d9267d069314aca0c355005a3c84c0d",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_46": {
+   "reason": null,
+   "sha256": "0b3884e994cd1cf8de77f2417f83a4f306567aafc18add08ae42be2f4e078e17",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_47": {
+   "reason": null,
+   "sha256": "5b445ea3eaf920732f663196431f31214739a952a7c3e1763f44cf84967e89e5",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_48": {
+   "reason": null,
+   "sha256": "fd03fdd274131eb5b54349b0a7d45c48fa9fce0d71141e270467e9041004a599",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_49": {
+   "reason": null,
+   "sha256": "d425763dcc5e0518747c953ea3479066fccb596cc485a5788d8f698ba6675fb5",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_5": {
+   "reason": null,
+   "sha256": "e4798e93db11e4f3257e196df8a4d7ab4a7fd57a7542da2d587f7503ace8a821",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_50": {
+   "reason": null,
+   "sha256": "4f1c480d8a274946b72aa11977203a761ad6d484b6ae785bbda5a13ba8dd4f89",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_51": {
+   "reason": null,
+   "sha256": "a2fa384106478ffb4693ed005443c8449d6010de3107bec23b0a4e064d6aa499",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_52": {
+   "reason": null,
+   "sha256": "1962b71cd27973a8a57f71da33feb85ceed62957b280402e097404e473ef9ff7",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_53": {
+   "reason": "novelty: CDRH3 SRSGYYGYSAMDY is 2 mutation(s) from SRSDYYGYAMDY in pdb:10ie_H; a novel design needs at least 3",
+   "sha256": "8cac2a88f7cae8fc2b6dc12198f2eed8e76cef92ec92a1ce3d1a3a6e15d9bcaa",
+   "status": "fail"
+  },
+  "multicdr-her2_multicdr_54": {
+   "reason": null,
+   "sha256": "79a23ee7a3c903c78c29420cd49b0e3acc19e685c471b35a763ed85f4b12014c",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_55": {
+   "reason": null,
+   "sha256": "8945b1a23bcc3d2febb82a6717245b54bf8eb1506b65ff1393b409def7999e2e",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_57": {
+   "reason": null,
+   "sha256": "27aaeeca381fe58efd54515034723cb5efcbf9eb4e2a3b5abc7a2f03f09b35d4",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_58": {
+   "reason": "novelty: CDRH3 SRSSSSYSYAMDY is 2 mutation(s) from SRGSSYSYAMDY in plabdab:plabdab_BAA02220_BAA02221; a novel design needs at least 3",
+   "sha256": "6253d3bae1c05fd45886efbdb1311faf122f2ca19ad16e3f1b045a3c1fb01292",
+   "status": "fail"
+  },
+  "multicdr-her2_multicdr_59": {
+   "reason": null,
+   "sha256": "fd86c2890d49a73a72865d1f05fe95fcf0a48630ae5415378e5955c43936082b",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_6": {
+   "reason": null,
+   "sha256": "e75d3502d1f691dc11c2464ded52aa77aab341091a488bbbeeb9357e50ba45e4",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_60": {
+   "reason": null,
+   "sha256": "307d7f7c2c9ea4a176f44e16057e5066c05a29825598275f6545bff165b172f7",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_61": {
+   "reason": null,
+   "sha256": "5432fcf01b61dc2796a8f573dd55b50f15c4d7527544e88f31d744d6511707ac",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_62": {
+   "reason": null,
+   "sha256": "03a6762be37775833a2f25e29658ba9b3614ffc6e43b566d51864c6eb33ced1a",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_63": {
+   "reason": null,
+   "sha256": "545fc87a30d4fac4fc5ed1c63153751e9988fe68d1f9b47c490863c2107e38bd",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_64": {
+   "reason": null,
+   "sha256": "a8e9009d1eb61624e6bd7d362a49d79881f9bdf0ed285afda72ec3d7efb99e18",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_65": {
+   "reason": null,
+   "sha256": "aa6aaed078b9c60513ad73019292f7820884bf3e86de3407cd039b4fc6faae17",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_66": {
+   "reason": null,
+   "sha256": "fbfd1fbf65fa39c5c15759e1ef06b7b77fe97fc0fcb966de01d60261a3047646",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_67": {
+   "reason": null,
+   "sha256": "d1a1ebe24af73b728e632bff2048cdc218f95986a6ff234a2ce98383d5ed7d56",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_68": {
+   "reason": null,
+   "sha256": "dca2a8f93636bb754823bfb33abefcc2958a2631912be96c58cb421828e86a1d",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_69": {
+   "reason": null,
+   "sha256": "94f8aba126f320ef6ea3a5c6832540c70b9ee226ea258b760f2cd10127b30d54",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_7": {
+   "reason": null,
+   "sha256": "be155e6d7d81f5acfda101e533b42daa0cf35e467e378bc902a11109e955ce38",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_70": {
+   "reason": null,
+   "sha256": "9c35e21b1e6ebba213b5b8df990b41a2363e0cee3795eadcdd819aee52b0238e",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_71": {
+   "reason": null,
+   "sha256": "d33668e1cc7507861c4470392d318a37abf386398fa9a56282129bc44e221e80",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_72": {
+   "reason": "novelty: CDRH3 SRSYGSGSYYFDY is 2 mutation(s) from SRNYGSGYYFDY in uspto:uspto_AFC06348; a novel design needs at least 3",
+   "sha256": "ddaa97c26db8076d50da41c57d1bb6fd73f00025135a6fe1e4932c92c0b56eaf",
+   "status": "fail"
+  },
+  "multicdr-her2_multicdr_73": {
+   "reason": null,
+   "sha256": "208410aa1b8230f2f6e823400733a86712a3f835b863a1cf5489159f0b4f32dd",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_74": {
+   "reason": null,
+   "sha256": "585ec9e75a511592e5d6513891f978180642280aa59cd254d3f39ad2f2ff1a78",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_75": {
+   "reason": null,
+   "sha256": "06eff678423f9828f294c973030cab00f09dc32a62a96d0016bf512d65f98e77",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_76": {
+   "reason": null,
+   "sha256": "eb67f0bbe40dd08d65f3a1238cc4ad71276aae007eeb908b7e1b25994c619a82",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_77": {
+   "reason": null,
+   "sha256": "7aa422ca7805a5f8c9e63828132ade7566c80cd0522fd37f098bf0120d4869cd",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_78": {
+   "reason": null,
+   "sha256": "e69354044120041a7694c7b3277955795adfe03ea8f9ee3b4d06bc82a75eb787",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_79": {
+   "reason": null,
+   "sha256": "03f8db81efa987ab97ca6c4964394d015ae24711ae7cf7713357f32773d0c815",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_8": {
+   "reason": null,
+   "sha256": "d16dc80450b9f1543cde6d05391dd250afe0f78d2e863d2c57c6d1fdc5992de3",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_80": {
+   "reason": null,
+   "sha256": "a9f057224abff70cf1a59c986d6fd8b436d8f01d795b9d22ff5a6088944ab41e",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_81": {
+   "reason": null,
+   "sha256": "8778299085979c76f188b958ae124c7866eeec4fa6df42ca419d0f0d78218bc0",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_82": {
+   "reason": null,
+   "sha256": "d311081305db61c0d152fd5aa89cbae8ee09af7904e1c94f961a0c89e261a35e",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_83": {
+   "reason": null,
+   "sha256": "46547b1e981ac2185058d2eee24bc526c7dfb1e67fd3bfc5acaec4553e382bf4",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_84": {
+   "reason": null,
+   "sha256": "14461623e42ee97ae710e7f6a262fb634dcac7ef43be4fe4821c18b203618377",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_85": {
+   "reason": null,
+   "sha256": "d96b442beb4f4507ade0ee098702ec6c4f25b205a4cb1ffbcd261485a49f33fb",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_86": {
+   "reason": null,
+   "sha256": "763011668c3e6a55b0fd79ff53c222c86390f490a1de9167f96b4eb64b08fa89",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_87": {
+   "reason": null,
+   "sha256": "aec849b4156f71538fcec0460cd4b392766ff1d4c7f583d5920886eaf1a87c08",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_88": {
+   "reason": null,
+   "sha256": "0a9b11cec94cdfb9aa934423041def20a71a5b265d6b9c3c1362c5e17c0d7bf3",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_89": {
+   "reason": "novelty: CDRH3 SRSYGSGSYYFDY is 2 mutation(s) from SRNYGSGYYFDY in uspto:uspto_AFC06348; a novel design needs at least 3",
+   "sha256": "f9f3c7fc2250d660a1117614de38f14f0cf2dcad85f08ffc96d2de366cf30324",
+   "status": "fail"
+  },
+  "multicdr-her2_multicdr_90": {
+   "reason": null,
+   "sha256": "f2134118de43c231da4684216de028a0ed8701633d35a365dd648b85ee223d8e",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_91": {
+   "reason": null,
+   "sha256": "41ec40816ee8085349e65b07fdebcadcd7f6c0a7ec4f4a079f6e759968116776",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_92": {
+   "reason": null,
+   "sha256": "91d892de8580a0f7e3f2772f62bcb6cfd27a6e978436baba894a430484b9b20a",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_93": {
+   "reason": null,
+   "sha256": "8c2ea6e5e8ed4eaeb19a5bec4b052b7cdf8b7071d10005577a6b48f07da5e06b",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_94": {
+   "reason": null,
+   "sha256": "472f163257c851f34da29037a15b6a1226834d749c2977855f2bd808f93d2d41",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_96": {
+   "reason": null,
+   "sha256": "c32634e274b8ec027b49c5702b48e31ae1a7a1688cf007e0eada891fdbb3f9e9",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_97": {
+   "reason": null,
+   "sha256": "1dc9e794cf378524e04be7c25b6e56ac25566f3b579e6f9286d23d9917d82359",
+   "status": "pass"
+  },
+  "multicdr-her2_multicdr_98": {
+   "reason": "novelty: CDRH3 SRSGYYPYYYFDY is 2 mutation(s) from SRSYPYYYFDY in uspto:uspto_WVS37275; a novel design needs at least 3",
+   "sha256": "4e71bd9ddaf27fc90bdb662f176db7816c9e5355f7dfe915b8e401da0fbbd52b",
+   "status": "fail"
+  },
+  "multicdr-her2_multicdr_99": {
+   "reason": null,
+   "sha256": "afbe35d3b8a8cda2be0bb5f86586929d0af95533f101a7a425c59301c22913c4",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_0": {
+   "reason": null,
+   "sha256": "331816040a2cf8575f62a4b74b2678427114c567d5db18773403ec12704f7514",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_1": {
+   "reason": null,
+   "sha256": "02eb471f54de02b5509bc45e8e892fffc075b1ff697f7758d67bd4a4cf09dcf1",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_10": {
+   "reason": null,
+   "sha256": "6ac3129c278ac853823d8c787820b97b5e92888f6ffad6ac4beb2e182e1d119c",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_11": {
+   "reason": null,
+   "sha256": "94bb7277f9649e15dc153d04613b39fdbd9b22d81edac7bb9b6655ea540b796a",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_12": {
+   "reason": null,
+   "sha256": "837ab3127a79529bcb19439458e7d357cd3b131e5fae52fa669db4ce1aabf355",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_14": {
+   "reason": null,
+   "sha256": "853bcc53fb532cb980a8da2c0ca53272f71c6b615bc285f2cb19e071c610ec1f",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_15": {
+   "reason": null,
+   "sha256": "5711c61a086cf46ef66127f425c186869f8b5143aeded735edd85b89c7cb66e5",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_17": {
+   "reason": null,
+   "sha256": "598cdb85f4f6711cba5ca04811b4ffb21b5e2301c505b0042177f2913c95b257",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_18": {
+   "reason": null,
+   "sha256": "a48657b53e47eea1013936654fabdeb7911bb881d630f6816e4ad39fa2ac5415",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_19": {
+   "reason": null,
+   "sha256": "45d2803816c01c7a1b877e2a9534d09b4642f3c7a1135c1aaf904c7b69cd491e",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_21": {
+   "reason": null,
+   "sha256": "26914f966512a830453395657675009b456d06deb3a0ab199c4f75a81c2bcf25",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_22": {
+   "reason": null,
+   "sha256": "12c323b90c42534fad40210fb4966b02aea339011ea9d208ea2d806a3d6b2c4f",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_24": {
+   "reason": null,
+   "sha256": "90c88684e52a88806444143478b36313d1f73eb83e88a69ba4baf7bb4111c95d",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_25": {
+   "reason": null,
+   "sha256": "cb7a621d2adfc2c0459b586d8db6553f537a61e7711eb6e5d5e32d5cc0ed0254",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_28": {
+   "reason": null,
+   "sha256": "02d93faac5891d9520618003b3c4c7f1fc3a7aded937c2e7a8f5b63a7c6597ca",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_29": {
+   "reason": null,
+   "sha256": "95c9026eac31a73e312533399f684edc0335d6abcaf749140dc95550a4e12f66",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_3": {
+   "reason": null,
+   "sha256": "b487e303000694e7983af69e95df00cc30f2f63d1c5b05cd14158d5330e834a8",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_30": {
+   "reason": null,
+   "sha256": "aafa862d10ffe89b8ebdfe56d784950189014419fbdcd269ae61b6a3ba40a79a",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_31": {
+   "reason": null,
+   "sha256": "26efe3922a0b2776b876ac3e74629b6ef55e68685acb8f52fa62dbe23b2d6eb4",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_32": {
+   "reason": null,
+   "sha256": "4b6cfd81515dd0190bef182d5ba4a818910ce25f4c3f82254da9959bb58d7395",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_33": {
+   "reason": null,
+   "sha256": "1ad2c17f96e134ac2d0ad7e8e8e7ed6c8baa4452c741d3f199037f1ef09356ee",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_34": {
+   "reason": null,
+   "sha256": "69535ee92991d2809ef0778c892bcd66c9b0fabc5675fcba95f8656df37cabf6",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_35": {
+   "reason": null,
+   "sha256": "cb7a621d2adfc2c0459b586d8db6553f537a61e7711eb6e5d5e32d5cc0ed0254",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_37": {
+   "reason": null,
+   "sha256": "e0be3904cd9f09c28a7ddf31adef98f777ba28837d5d43c826755ae90b7f7c60",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_38": {
+   "reason": null,
+   "sha256": "2261ce4e1571b3937bcbae5ca3ec3f04e9ab571feb07615a75f85c0f752eff03",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_4": {
+   "reason": null,
+   "sha256": "9211bb35a75173e7381cfec71eae928186d1bd58ba4353603af0374bba1cc017",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_41": {
+   "reason": null,
+   "sha256": "32870677e523685f9902c2afdaaedb65ad75ce5661e0845ad84a6c1c978d39bc",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_42": {
+   "reason": null,
+   "sha256": "7254365a79a05de29cf1ce6d72849f56c9aaf2cd79dd69598c1393d5ed29809d",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_43": {
+   "reason": null,
+   "sha256": "57bbc60bb1cc6d4a16483a325756cb6d3aedf27ab95617abeb50d5328e028c2a",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_44": {
+   "reason": null,
+   "sha256": "7515c68d6cf028b5317300cb77fadae80986b0a020fe17454947e1caeec60f44",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_45": {
+   "reason": null,
+   "sha256": "d914e444c529c73c2363506b47ceb1306521514510525c02e67ccdc0ae418d03",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_46": {
+   "reason": null,
+   "sha256": "73815149b397e5c3c812e5c35dd1e4fa96ef8b9381db43119003f803bb9ff7ba",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_48": {
+   "reason": null,
+   "sha256": "0cf20b3a43fa92364abab55015a1565c010b82fcec9b015d0e6ed9ebdd3826e8",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_5": {
+   "reason": null,
+   "sha256": "085342b345e7c6fdcd80cc8e85809fa7e13264f60fbfc1602c88a700da902068",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_51": {
+   "reason": null,
+   "sha256": "f0666298c06781d0312bc0b75df2f43552bc3e2df3c2ba4074589b37344eedf5",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_52": {
+   "reason": null,
+   "sha256": "e41573b1673b8429b5fae6c780296fc89f2ea42841d09426182b30b7eb0f34c0",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_54": {
+   "reason": null,
+   "sha256": "509e2392415492d65ed035f7094484634b8712b09856780fb1ada40ced472ff3",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_55": {
+   "reason": null,
+   "sha256": "94c02c675a5c40a3095f7864fe9e19ebc32f9528b715d11b7469f686b13b45e4",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_58": {
+   "reason": null,
+   "sha256": "c488f7559ecb1f59b35a78f178b10113a410f1425097bb4f12341a192e65d9f5",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_59": {
+   "reason": null,
+   "sha256": "75127663bb466129f0f53a9495c582d64302c57ac766cc39f2c7caf76eef53d3",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_6": {
+   "reason": null,
+   "sha256": "d0915b7313abd796d66d4edba06e90753753e94ab3ecae2e87131e41ebe6ee07",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_60": {
+   "reason": null,
+   "sha256": "5d124e2846f79f9ff362392edae9e848f676f75089f232a354eca2d3e529395f",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_61": {
+   "reason": null,
+   "sha256": "4d78728eaf6651d815eb31350ad2c44dcc097ce1b3f1e99f4c125d155466afa4",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_62": {
+   "reason": null,
+   "sha256": "3f81ce1ed1c3740579cefbcf5f0a51a0d514e7d8c079a07a054c585aea2a5697",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_63": {
+   "reason": null,
+   "sha256": "bc59838f6be4321488ae050ebcaafb6bc1d6a2a2ff9d1bd41bd43acc27dfacb4",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_64": {
+   "reason": null,
+   "sha256": "67a0ddf13d814cc973847830615a1988ba6c6bc6549e0debc92ebe4fa01589ed",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_65": {
+   "reason": null,
+   "sha256": "b8e33658958f4c9ec8740d0576356902e2b6fdfd10bfd97e825e9d72a46ff1f7",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_66": {
+   "reason": null,
+   "sha256": "d947bf00059e1f554265d7cde9e4ecc554adeb3c76396dceb8992e6317adf059",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_67": {
+   "reason": null,
+   "sha256": "fb6d863af049dceb84cf9162f996fdb51ea0df940ae8e5d6b9bf00f84c82a1c2",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_68": {
+   "reason": null,
+   "sha256": "830895a94462c875fd58ad67f845c229886ed01de09708db4426340d01210af0",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_7": {
+   "reason": null,
+   "sha256": "aca4038dfd72e21ba5e6867d560cebe834eae5cf905592c43eacf99d0c9d049b",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_70": {
+   "reason": null,
+   "sha256": "c9620086a4dcf513276b88e57b6a149df87ec5457059b41dd41d2f862e713fae",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_71": {
+   "reason": null,
+   "sha256": "979e2b962c2ca31f1795aed88f0905f2ab350d617e9f8775e81e863a4f5aaa57",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_73": {
+   "reason": null,
+   "sha256": "bc43563d06a6b7301aaf7faf8fc429e8497a605c2653a557c28a3fe1d10b4af4",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_74": {
+   "reason": null,
+   "sha256": "bfb394ffe6eb1f1e57c2c0ec92ca72544da65c992f1b40ae23be38a5056a5091",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_75": {
+   "reason": null,
+   "sha256": "39a0834c2d043838c0b1d8643f4a44265dd7956d183f2765918b7a0dd905c90e",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_76": {
+   "reason": null,
+   "sha256": "8c0408d5fa39bbcdf9223abafe2e9f72704409e4bc9374b574053220825233f8",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_77": {
+   "reason": null,
+   "sha256": "88dea9dc57e85ac99312b1ae41c075cb0221fd9e75380ca50c83b15813f06554",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_8": {
+   "reason": null,
+   "sha256": "ad7c959dbde987ff221b9a6b8e99eb7a8a08b4ef7b2ac838be702b3a320d61a8",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_80": {
+   "reason": null,
+   "sha256": "e18c0809561e647b36e56ab2703798b0509603f5f8bf5267f4ecb200b1946473",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_81": {
+   "reason": null,
+   "sha256": "05492ed9c4a70c3c7306c9cae6a5b64460dc93b217cfca875c06cc549c487f17",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_84": {
+   "reason": null,
+   "sha256": "31d1d74d8717566e03a6b022240bb8935ecd1099d724eeaaea39d0ce37e3ff65",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_85": {
+   "reason": null,
+   "sha256": "a3264b706677803fac9820aec00681d3294e7f6de661a4aa18626aa567784dea",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_86": {
+   "reason": null,
+   "sha256": "0292e34d46fef858d4e9450426644200dc89e21ddf15cd22c47c6ec76cc0c667",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_87": {
+   "reason": null,
+   "sha256": "099cda5df89776561fc524c5c93920034bea43e395c4c9cc1845d5dfb4ccc62a",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_88": {
+   "reason": null,
+   "sha256": "c82b02424df876c02b7cf65adfe46f3134939e14d6cdd89165880e70a7d13162",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_9": {
+   "reason": null,
+   "sha256": "41ca281b1591f550a6c18e9e0f654fe90886f377c1149f9765146e0f1415f7c5",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_91": {
+   "reason": null,
+   "sha256": "480ed46ca7832cdf1edce17232d2bae15c02e8ed9b8aec5262fabf67177245b3",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_92": {
+   "reason": null,
+   "sha256": "176593a5ce4529e269cbe6c2133ff32dcbcd924cfc9d384e8b557ff2f88d8c0c",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_93": {
+   "reason": null,
+   "sha256": "a3264b706677803fac9820aec00681d3294e7f6de661a4aa18626aa567784dea",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_94": {
+   "reason": null,
+   "sha256": "606df96a2b43cbff0103bd45bf3a6efefc301edbc324a48785fc67d9e29ac37d",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_96": {
+   "reason": null,
+   "sha256": "ccd65aa6ae769dbc6d8ce5ded8c80a816fee9146c67903e68875ad93fc627c55",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_97": {
+   "reason": null,
+   "sha256": "9dacb580cfdc69fc3a94274b93d950160c8b92794e1c8a8644b8ee7d9b49abdd",
+   "status": "pass"
+  },
+  "optA-her2_cdrh3_98": {
+   "reason": null,
+   "sha256": "2261ce4e1571b3937bcbae5ca3ec3f04e9ab571feb07615a75f85c0f752eff03",
+   "status": "pass"
+  },
+  "optB-her2_cdrh3_0": {
+   "reason": null,
+   "sha256": "f5845a69d5c4aa184b5c51d2041809b7846895565a85e3b5a1ffa70aef20b177",
+   "status": "pass"
+  },
+  "optB-her2_cdrh3_10": {
+   "reason": "novelty: CDRH3 SRYPGRYFYTYDY is 2 mutation(s) from SRYPPGRFYTYDY in tz_her2_facs_3classes_524346; a novel design needs at least 3",
+   "sha256": "e3ccd14a0b10775d96fb49862c20e768e1351bfbcf0c3ca415a10f053870d5e0",
+   "status": "fail"
+  },
+  "optB-her2_cdrh3_19": {
+   "reason": null,
+   "sha256": "9fcd5b229dce434262d437e13865256efef739bb6de592130f2aa9875fa3f9a6",
+   "status": "pass"
+  },
+  "optB-her2_cdrh3_2": {
+   "reason": null,
+   "sha256": "e2766ad5a97f1dfc6968fb16c30c94ff1044d2b82e04beed97b815a09a030b56",
+   "status": "pass"
+  },
+  "optB-her2_cdrh3_20": {
+   "reason": null,
+   "sha256": "a8791c3bb250b6e41e5673c6ebe27588988776578a92861cefc07c64cc8b273a",
+   "status": "pass"
+  },
+  "optB-her2_cdrh3_25": {
+   "reason": null,
+   "sha256": "210714a3218b2e5da21ca3a18df8d3320ab3187eb6a68723f41fe206e905fee5",
+   "status": "pass"
+  },
+  "optB-her2_cdrh3_26": {
+   "reason": null,
+   "sha256": "1a63b6871b67ab4a831338b0c1ea1c8e814cbcaad5c6cd45ca05ee852e9bb487",
+   "status": "pass"
+  },
+  "optB-her2_cdrh3_31": {
+   "reason": null,
+   "sha256": "1ccc03f8f6493ab2f983cb10805bb2904048337815cf3b5df818272f08e9a6c0",
+   "status": "pass"
+  },
+  "optB-her2_cdrh3_32": {
+   "reason": null,
+   "sha256": "b0a044d9419450a9a4c708c3ebbf79b5be44e6796178e821f35c080618580c12",
+   "status": "pass"
+  },
+  "optB-her2_cdrh3_33": {
+   "reason": null,
+   "sha256": "ed50127b295936eb0064dc0b794b66eade2e02e5ee11ffdc582342a18cc9ccfb",
+   "status": "pass"
+  },
+  "optB-her2_cdrh3_40": {
+   "reason": null,
+   "sha256": "138eb9d92c13c024347695a37e0e41bf5bd7cd0c2cdadf45840086ab2495bdc2",
+   "status": "pass"
+  },
+  "optB-her2_cdrh3_41": {
+   "reason": null,
+   "sha256": "79fbd3400dd44367e1dc934e635eb99bae38d9b762098fe250a7c03614e03e0b",
+   "status": "pass"
+  },
+  "optB-her2_cdrh3_45": {
+   "reason": null,
+   "sha256": "47bb10048e1bc41c7d41ce320fcf21631e740492f22c1698ac81132a5e379e8a",
+   "status": "pass"
+  },
+  "optB-her2_cdrh3_50": {
+   "reason": null,
+   "sha256": "4581c3bab0d5f83dd0ac730c0160af10c6eebebbbdd2dcb6277f7a57e5d0d88d",
+   "status": "pass"
+  },
+  "optB-her2_cdrh3_51": {
+   "reason": null,
+   "sha256": "5166f877bbfed2b7e0e52fce5e4895e17611aff705b2691e2d3a239315773aa9",
+   "status": "pass"
+  },
+  "optB-her2_cdrh3_52": {
+   "reason": null,
+   "sha256": "7ad6fc5b43d4d00f15f4c6ca669bdb0337df75e9ac8525b231f647a3ed748563",
+   "status": "pass"
+  },
+  "optB-her2_cdrh3_54": {
+   "reason": null,
+   "sha256": "40054348ce7128f743a2f842fc7a01132c8b77c40f87db1277ea2da1ab95d8ff",
+   "status": "pass"
+  },
+  "optB-her2_cdrh3_55": {
+   "reason": null,
+   "sha256": "7cf938afc6c9a8d93484ab139561a06b95df154be1e842fc81018a4257443dbb",
+   "status": "pass"
+  },
+  "optB-her2_cdrh3_57": {
+   "reason": null,
+   "sha256": "769603d7ddea5838f8f846c4b014907868c73d18209f6730cfee12d088321dc5",
+   "status": "pass"
+  },
+  "optB-her2_cdrh3_59": {
+   "reason": null,
+   "sha256": "d29951e5ab46a04c24f9229f4983e0431bfee09a3dacb1f93d2452880a26ee3c",
+   "status": "pass"
+  },
+  "optB-her2_cdrh3_6": {
+   "reason": null,
+   "sha256": "2384515a89de46d3e20d1ea40769c2b93216068de0150448b5d219cd3e762601",
+   "status": "pass"
+  },
+  "optB-her2_cdrh3_64": {
+   "reason": null,
+   "sha256": "e59c6f3bece918b266f59e02c80e5db0959dd98e6d876d0ad05e829d62fa582e",
+   "status": "pass"
+  },
+  "optB-her2_cdrh3_67": {
+   "reason": null,
+   "sha256": "e10509f15ccb13c0836436457575f92c08409323b11a2dc21e8ba6a6b2ad9455",
+   "status": "pass"
+  },
+  "optB-her2_cdrh3_69": {
+   "reason": null,
+   "sha256": "d4fe68072e101f2721326231560d01ee0db78c5a53af657ad358733528f66095",
+   "status": "pass"
+  },
+  "optB-her2_cdrh3_7": {
+   "reason": null,
+   "sha256": "6947480383aaf0fe9e01976336479cc2d45148a79761f07cf0b777513b7e6227",
+   "status": "pass"
+  },
+  "optB-her2_cdrh3_71": {
+   "reason": null,
+   "sha256": "7004182bec9d2f635bc309445fa77ef9bbb788a0df39382830231f52a6998677",
+   "status": "pass"
+  },
+  "optB-her2_cdrh3_73": {
+   "reason": null,
+   "sha256": "ca3034580af03b33e84e33fd2dbfab0e6e2d26ca0d278e346bafed7ed469612f",
+   "status": "pass"
+  },
+  "optB-her2_cdrh3_8": {
+   "reason": null,
+   "sha256": "54b705606303d3cf0080dd5c29ba0217ea1b1dbbcfe796c69845cb7b026e9829",
+   "status": "pass"
+  },
+  "optB-her2_cdrh3_80": {
+   "reason": null,
+   "sha256": "73742f45bff666b54f7460f0d56478b4fce34e7cff7b05270f9468837cb1a321",
+   "status": "pass"
+  },
+  "optB-her2_cdrh3_83": {
+   "reason": null,
+   "sha256": "65cbf97155da16bbd6b09b4814e48f5e2c1b2c5f2ee347c43dde7922dde66dca",
+   "status": "pass"
+  },
+  "optB-her2_cdrh3_84": {
+   "reason": null,
+   "sha256": "3aa7580c786d135c6fffd98ad7b0adfb3f11dd29652eb420238cea01d5827b5f",
+   "status": "pass"
+  },
+  "optB-her2_cdrh3_85": {
+   "reason": null,
+   "sha256": "f54a08b1e9c64fbdc0997a95191a190f2534f30f13fbd8a1fd7eea02c2c79173",
+   "status": "pass"
+  },
+  "optB-her2_cdrh3_90": {
+   "reason": null,
+   "sha256": "48a0f1a5edff133de4aab33a9e983be466c23b504de8398154eaa10083e29843",
+   "status": "pass"
+  },
+  "optB-her2_cdrh3_93": {
+   "reason": null,
+   "sha256": "7a548e6d760a911b55246ed117efbd108d1cb34697ce5a30bcbfe379167c88df",
+   "status": "pass"
+  },
+  "optB-her2_cdrh3_98": {
+   "reason": null,
+   "sha256": "a23b7eb4ce32c5fc4c10d5c5b63e6034f858259c5da155b8417b2278159718aa",
+   "status": "pass"
+  },
+  "optB-her2_cdrh3_99": {
+   "reason": null,
+   "sha256": "a8188cd4cd743ee6d8c790805aa0320383332ee368188f32d920ed041941d69a",
+   "status": "pass"
+  }
+ }
+}

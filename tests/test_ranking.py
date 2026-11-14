@@ -636,6 +636,68 @@ class TestIngest(unittest.TestCase):
         self.assertGreater(broken["refold_disagreement"], 0.8)
 
 
+class TestAbguardVerdicts(unittest.TestCase):
+    """abguard exists only on the VM, so its verdicts are recorded and read here.
+
+    The earlier wrapper called `abguard check --json -`, which is not a real
+    command, so it could never have produced a verdict. These tests pin the
+    replacement: a recorded verdict applies only to the exact construct abguard
+    saw, a rejection fails the design, and nothing unrecorded reads as a pass.
+    """
+
+    def _blob(self, rec, status="pass", reason=None):
+        import hashlib
+
+        seq = gates._construct_sequence(rec)
+        return {"tool": "abguard test", "run_at": "t", "verdicts": {
+            rec.design_id: {"sha256": hashlib.sha256(seq.encode()).hexdigest(),
+                            "status": status, "reason": reason}}}
+
+    def _run(self, rec, blob):
+        saved = gates._VERDICTS
+        gates._VERDICTS = blob
+        try:
+            failed, checks = [], {}
+            gates.abguard_check(rec, failed, checks)
+            return failed, checks["abguard"]
+        finally:
+            gates._VERDICTS = saved
+
+    def test_a_recorded_pass_applies(self):
+        rec = make("v-pass", "WEGDKFYMMH")
+        failed, ab = self._run(rec, self._blob(rec))
+        self.assertEqual(ab["status"], "pass")
+        self.assertEqual(failed, [])
+
+    def test_a_recorded_rejection_fails_the_design_with_abguards_reason(self):
+        rec = make("v-fail", "WEGDKFYMMH")
+        failed, ab = self._run(rec, self._blob(rec, "fail", "novelty: 2 mutation(s) from X"))
+        self.assertEqual(ab["status"], "fail")
+        self.assertTrue(any("2 mutation(s) from X" in f for f in failed), failed)
+
+    def test_a_pass_does_not_survive_a_changed_sequence(self):
+        """An old pass must never vouch for a different molecule."""
+        rec = make("v-changed", "WEGDKFYMMH")
+        blob = self._blob(rec)
+        rec.sequence = rec.sequence.replace("WEGDKFYMMH", "WEGDKFYMMY")
+        _, ab = self._run(rec, blob)
+        self.assertEqual(ab["status"], "NOT RUN")
+        self.assertIn("changed", ab["why"])
+
+    def test_an_unrecorded_design_is_not_run_never_a_pass(self):
+        rec = make("v-unknown", "WEGDKFYMMH")
+        _, ab = self._run(rec, {"verdicts": {}})
+        self.assertEqual(ab["status"], "NOT RUN")
+
+    def test_the_committed_verdicts_reject_the_known_indel_case(self):
+        """optB_10 passed our substitution-only distance check and was rejected
+        by abguard, which counts an insertion as one mutation. The record must
+        keep saying so."""
+        v = gates.load_abguard_verdicts()["verdicts"]["optB-her2_cdrh3_10"]
+        self.assertEqual(v["status"], "fail")
+        self.assertIn("2 mutation", v["reason"])
+
+
 class TestTransferGuard(unittest.TestCase):
     """The guard that kept a bad model out of the ranker.
 

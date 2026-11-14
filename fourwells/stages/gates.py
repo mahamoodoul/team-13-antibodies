@@ -513,77 +513,77 @@ def track_checks(
 # ---------------------------------------------------------------------------
 
 
-def abguard_check(rec: DesignRecord, failed: list[str], checks: dict, abguard: str = "abguard") -> None:
-    """Run the organisers' checker. It is authoritative, including on track.
+ABGUARD_VERDICTS_FILE = REFERENCE_DIR / "abguard_verdicts.json"
+_VERDICTS: dict | None = None
 
-    Not on a laptop. When it is missing we record `NOT RUN` and the portfolio
-    stage treats the shortlist as not submission-ready — the alternative, a
-    design that reads as passed because the authority never saw it, is the
-    failure mode the hard rule exists to prevent.
+
+def load_abguard_verdicts(path: Path | None = None) -> dict:
+    """The recorded abguard verdicts, or {} if none have been recorded."""
+    global _VERDICTS
+    if path is None and _VERDICTS is not None:
+        return _VERDICTS
+    path = path or ABGUARD_VERDICTS_FILE
+    blob = json.loads(path.read_text()) if path.exists() else {}
+    if path == ABGUARD_VERDICTS_FILE:
+        _VERDICTS = blob
+    return blob
+
+
+def _construct_sequence(rec: DesignRecord) -> str:
+    """The molecule abguard was shown: the recorded construct, else the sequence.
+
+    Same rule as report.construct_of, repeated here because report imports from
+    the stages and the dependency must not run the other way.
     """
-    if shutil.which(abguard) is None:
+    c = (rec.axis_evidence or {}).get("construct")
+    if isinstance(c, dict) and c.get("sequence"):
+        return c["sequence"]
+    return rec.sequence
+
+
+def abguard_check(rec: DesignRecord, failed: list[str], checks: dict, **_) -> None:
+    """Apply abguard's recorded verdict to this design. It is the authority.
+
+    abguard exists only on the team VM, so it is run there by
+    scripts/abguard_verdicts.py, which records one verdict per design in
+    data/reference/abguard_verdicts.json. This reads that record.
+
+    A verdict binds to the sha256 of the exact construct abguard saw. A design
+    whose sequence has changed since, or that was never in the run, is `NOT RUN`
+    and the portfolio stage treats the shortlist as not submission-ready. An old
+    pass never vouches for a different molecule.
+
+    (An earlier version shelled out to `abguard check --json -`. No such
+    command exists; the real tool is `abguard team-validate`. That path never
+    produced a verdict, and is gone rather than left to look like it works.)
+    """
+    import hashlib
+
+    blob = load_abguard_verdicts()
+    v = (blob.get("verdicts") or {}).get(rec.design_id)
+    if not v:
         checks["abguard"] = {
             "status": "NOT RUN",
-            "why": f"{abguard!r} not on PATH (it lives on the team VM)",
+            "why": "no recorded verdict; run scripts/abguard_verdicts.py on the VM",
         }
         return
 
-    payload = {
-        "design_id": rec.design_id,
-        "sequence": rec.sequence,
-        "format": rec.format,
-        "track": rec.track,
-    }
-    try:
-        proc = subprocess.run(
-            [abguard, "check", "--json", "-"],
-            input=json.dumps(payload),
-            capture_output=True,
-            text=True,
-            timeout=120,
-        )
-    except subprocess.TimeoutExpired:
-        checks["abguard"] = {"status": "ERROR", "why": "timeout after 120s"}
-        failed.append("abguard timed out")
-        return
-    except OSError as e:
-        checks["abguard"] = {"status": "ERROR", "why": str(e)}
-        failed.append(f"abguard could not be run: {e}")
-        return
-
-    try:
-        out = json.loads(proc.stdout)
-    except json.JSONDecodeError:
-        # A build that does not speak JSON: a zero exit is a pass, anything
-        # else is a failure whose reason we still name from stderr.
-        status = "pass" if proc.returncode == 0 else "fail"
+    seq = _construct_sequence(rec)
+    if hashlib.sha256(seq.encode()).hexdigest() != v.get("sha256"):
         checks["abguard"] = {
-            "status": status,
-            "raw": (proc.stdout or proc.stderr).strip()[:300],
-            "note": "non-JSON output; verdict taken from exit code",
+            "status": "NOT RUN",
+            "why": "sequence changed since abguard saw it; the recorded verdict does not apply",
         }
-        if proc.returncode != 0:
-            failed.append(f"abguard rejected: {proc.stderr.strip()[:120] or 'exit ' + str(proc.returncode)}")
         return
 
-    checks["abguard"] = {"status": "pass" if out.get("passed", True) else "fail", "raw": out}
-
-    # abguard assigns the track. We take its word over the generator's label.
-    assigned = out.get("track")
-    if assigned and assigned != rec.track:
-        checks["abguard_reassigned_track"] = {"from": rec.track, "to": assigned}
-        rec.note("gates", f"abguard reassigned track {rec.track} -> {assigned}")
-        rec.track = assigned
-
-    conf = out.get("numbering_confidence")
-    if conf is not None:
-        checks["numbering_confidence"] = conf
-        if conf < MIN_NUMBERING_CONFIDENCE:
-            failed.append(f"immunum numbering confidence {conf} < {MIN_NUMBERING_CONFIDENCE}")
-
-    if not out.get("passed", True):
-        for rule in out.get("failed_rules") or ["unspecified"]:
-            failed.append(f"abguard: {rule}")
+    checks["abguard"] = {
+        "status": v["status"],
+        "tool": blob.get("tool"),
+        "run_at": blob.get("run_at"),
+        **({"reason": v["reason"]} if v.get("reason") else {}),
+    }
+    if v["status"] != "pass":
+        failed.append(f"abguard: {v.get('reason') or 'rejected'}")
 
 
 # ---------------------------------------------------------------------------
