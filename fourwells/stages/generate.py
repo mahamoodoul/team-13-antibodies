@@ -16,10 +16,29 @@ judge's laptop. This stage therefore has three paths, in order of preference:
    mistake it for a design.
 
 The baseline travels the identical path. `trastuzumab` is emitted as an ordinary
-record carrying its own refold metrics, so every axis has a reference row.
+record carrying its own refold metrics, so every axis has a reference row — one
+per folding model, because the scores are not comparable across models.
 
-Generation is deliberately thin: it supplies candidates and the refold evidence,
-and makes no ranking decisions. Those belong to the gate and scoring stages.
+Generation is deliberately thin: it supplies candidates and the evidence, and
+makes no ranking decisions. Those belong to the gate and scoring stages.
+
+What each record carries, and which stage reads it:
+
+    axes evidence             read by        what it is
+    novelty                   gates          the challenge filter against all
+                                             525,063 provided CDRH3s
+    confidence                score          an ipTM-scale number, ONLY from a
+                                             model whose baseline leaves headroom
+                                             (see CONFIDENCE_MODEL_PREFERENCE)
+    epitope_contacts          score          HER2 residues within 4.5 A of the
+                                             binder in the refolded complex
+    refold, refold_by_model   score/report   raw per-model fold metrics
+    construct                 report         the orderable VH-(G4S)3-VL scFv
+
+Three of those exist because the stage was computing them and nothing was reading
+them: the key the consumer expects and the key the producer wrote did not match.
+If you add evidence here, grep for the key in the stage meant to consume it before
+assuming it arrived.
 """
 
 from __future__ import annotations
