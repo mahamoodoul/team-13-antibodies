@@ -181,8 +181,28 @@ class TestHonesty(unittest.TestCase):
             self.assertIn("prediction", text.lower())
 
     def test_every_axis_is_labelled_predicted(self):
-        self.assertEqual(self.hl.count('class="chip pred"'), 4 * len(AXES))
-        self.assertNotIn('class="chip meas"', self.hl)
+        """The dossier renders client-side, so the label lives in the template.
+
+        What must hold either way: the page labels axes as predicted, and
+        nothing anywhere labels one measured.
+        """
+        self.assertIn("chip pred", self.hl)
+        self.assertNotIn("chip meas", self.hl)
+        self.assertIn("predicted", self.hl)
+        for row in self.md.splitlines():
+            if row.startswith("| ") and "0." in row and "measured" in row:
+                self.fail(f"an axis row claims a measurement: {row}")
+
+    def test_nothing_calls_a_computational_decoy_measured(self):
+        """REGRESSION: the pipeline used to print 'the 454 measured non-binders'.
+
+        proof/audit_datasets.py found no SPR column in that archive at all — the
+        pairs are shuffled and computational. Printing 'measured' to a judge is
+        the exact confusion this report exists to prevent.
+        """
+        for text in (self.md, self.hl):
+            self.assertNotIn("454 measured", text)
+            self.assertIn("shuffled", text)
 
     def test_states_the_baseline_meaning(self):
         for text in (self.md, self.hl):
@@ -225,8 +245,18 @@ class TestHtmlIsSelfContained(unittest.TestCase):
     def test_no_external_references(self):
         self.assertEqual(re.findall(r'(?:src|href)="(?!#)([^"]+)"', self.hl), [])
 
-    def test_no_script(self):
-        self.assertNotIn("<script", self.hl.lower())
+    def test_no_script_is_loaded_from_anywhere(self):
+        """Inline script is fine; a fetched one is not.
+
+        The rule that matters is 'opens with no network', not 'has no
+        JavaScript'. Sorting, filtering and side-by-side comparison are worth
+        having, and they cost nothing offline.
+        """
+        self.assertEqual(re.findall(r"<script[^>]*\ssrc=", self.hl), [])
+
+    def test_no_network_calls_at_runtime(self):
+        for forbidden in ("fetch(", "XMLHttpRequest", "import(", "//cdn", "https://"):
+            self.assertNotIn(forbidden, self.hl, forbidden)
 
     def test_well_formed(self):
         stack, errors = [], []
@@ -249,14 +279,152 @@ class TestHtmlIsSelfContained(unittest.TestCase):
         self.assertEqual(errors, [])
         self.assertEqual(stack, [])
 
-    def test_escapes_hostile_content(self):
-        """A generator name is data. It must not be able to inject markup."""
+    def test_data_cannot_break_out_of_the_script_tag(self):
+        """A generator name or a rationale line is data, never markup.
+
+        The design records now travel as JSON inside the page, so the attack is
+        no longer "inject a tag into HTML" but "close the script tag early".
+        Every '<' in the payload is encoded, which makes '</script>' unwritable
+        from data; the JS then renders through textContent, never raw HTML.
+        """
         result = a_run(n_pass=5)
-        result.selected[0].generator = '<script>alert(1)</script>'
+        result.selected[0].generator = "</script><script>alert(1)</script>"
+        result.selected[1].rationale = ["</script><img src=x onerror=alert(2)>"]
+        result.selected[2].cdrh3 = "</script>"
         hl = report.render_html(result.records, result.selected,
                                 {"budget": 4, "run_id": "t"}, [])
+
+        payload = re.search(r'<script type="application/json" id="data">(.*?)</script>',
+                            hl, re.S)
+        self.assertIsNotNone(payload, "payload not found or already broken out of")
+        self.assertNotIn("<", payload.group(1))
+        self.assertIn("\\u003c", payload.group(1))
+
+        # Exactly two script tags: the JSON payload and the app. No third one.
+        self.assertEqual(len(re.findall(r"<script", hl)), 2)
+        # The characters "onerror=" survive inside escaped text, which is fine.
+        # What must never appear is an unescaped tag that could carry them.
+        self.assertNotIn("<img", hl)
+
+    def test_payload_round_trips_hostile_content_intact(self):
+        """Escaping must not corrupt the data it protects."""
+        result = a_run(n_pass=5)
+        result.selected[0].generator = "</script>x"
+        hl = report.render_html(result.records, result.selected,
+                                {"budget": 4, "run_id": "t"}, [])
+        raw = re.search(r'id="data">(.*?)</script>', hl, re.S).group(1)
+        blob = json.loads(raw.replace(r"<", "<"))
+        gens = [d["generator"] for d in blob["designs"] if d["generator"]]
+        self.assertIn("</script>x", gens)
+
+    def test_config_and_warnings_are_escaped(self):
+        """Config and warnings are rendered server-side, so they need escaping too."""
+        result = a_run(n_pass=3)
+        result.warnings = ['<img src=x onerror=alert(1)>']
+        hl = report.render_html(
+            result.records, result.selected,
+            {"budget": 4, "run_id": '"><script>alert(1)</script>', "target": "<b>x</b>"},
+            result.warnings,
+        )
         self.assertNotIn("<script>alert", hl)
-        self.assertIn("&lt;script&gt;", hl)
+        self.assertNotIn("<img", hl)
+        self.assertIn("&lt;img", hl)
+
+
+CHROME = Path("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
+
+PROBE = """
+<script>
+(function(){
+ var out=[];
+ function live(){return document.querySelectorAll('#tb tr[data-id]')}
+ function ids(){return Array.from(live()).map(function(t){return t.dataset.id})}
+ out.push('rows='+live().length);
+ var th=document.querySelector('#tbl th[data-k="ax.binding"]');
+ th.click(); var desc=ids(); th.click(); var asc=ids();
+ out.push('sort_reverses='+(desc[0]!==asc[0]));
+ var D=JSON.parse(document.getElementById('data').textContent), by={};
+ D.designs.forEach(function(r){by[r.id]=r});
+ var v=desc.map(function(i){return by[i].ax.binding}), mono=true;
+ for(var i=1;i<v.length;i++) if(v[i]>v[i-1]) mono=false;
+ out.push('sort_is_monotone='+mono);
+ var q=document.getElementById('q');
+ q.value=D.designs[0].id; q.dispatchEvent(new Event('input'));
+ out.push('search='+live().length);
+ q.value='zzzznope'; q.dispatchEvent(new Event('input'));
+ out.push('nomatch='+(document.querySelector('#tb .none')?1:0));
+ q.value=''; q.dispatchEvent(new Event('input'));
+ document.getElementById('flab').click();
+ out.push('labonly='+live().length);
+ document.getElementById('flab').click();
+ live()[0].dispatchEvent(new MouseEvent('click',{bubbles:true,shiftKey:true}));
+ live()[1].dispatchEvent(new MouseEvent('click',{bubbles:true,shiftKey:true}));
+ out.push('cmp_tables='+document.querySelectorAll('#cmp table').length);
+ live()[2].dispatchEvent(new MouseEvent('click',{bubbles:true}));
+ out.push('detail='+(document.getElementById('detail').textContent.length>200));
+ document.title='R '+out.join('|');
+})();
+</script>
+"""
+
+
+@unittest.skipUnless(CHROME.exists(), "headless Chrome not available")
+class TestInBrowser(unittest.TestCase):
+    """The dashboard's behaviour, driven in a real browser.
+
+    Skipped where Chrome is absent so the suite stays stdlib-portable, but run
+    it before the demo: a sort that silently does nothing looks identical to a
+    sort that works, and that is exactly the bug this caught — axis columns are
+    keyed "ax.binding" and a plain r[k] resolved to undefined, so every click on
+    an axis heading reordered nothing at all.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        import subprocess
+
+        result = a_run(n_pass=12)
+        hl = report.render_html(result.records, result.selected,
+                                {"budget": 4, "run_id": "t", "target": "HER2"}, [])
+        cls.tmp = tempfile.TemporaryDirectory()
+        page = Path(cls.tmp.name) / "p.html"
+        page.write_text(hl.replace("</body>", PROBE + "</body>"))
+        out = subprocess.run(
+            [str(CHROME), "--headless", "--disable-gpu", "--no-sandbox",
+             "--virtual-time-budget=4000", "--dump-dom", page.as_uri()],
+            capture_output=True, text=True, timeout=90,
+        )
+        m = re.search(r"<title>R ([^<]*)</title>", out.stdout)
+        cls.res = dict(kv.split("=", 1) for kv in m.group(1).split("|")) if m else {}
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def test_the_probe_ran(self):
+        self.assertTrue(self.res, "no result title — the page's JS did not run")
+
+    def test_table_renders_every_design(self):
+        self.assertEqual(self.res.get("rows"), "12")
+
+    def test_sorting_an_axis_column_actually_sorts(self):
+        self.assertEqual(self.res.get("sort_reverses"), "true")
+        self.assertEqual(self.res.get("sort_is_monotone"), "true")
+
+    def test_search_filters(self):
+        self.assertEqual(self.res.get("search"), "1")
+
+    def test_empty_result_says_so(self):
+        self.assertEqual(self.res.get("nomatch"), "1")
+
+    def test_lab_slots_filter(self):
+        self.assertEqual(self.res.get("labonly"), "4")
+
+    def test_comparing_two_designs_builds_the_table(self):
+        self.assertEqual(self.res.get("cmp_tables"), "1")
+
+    def test_clicking_a_row_opens_its_dossier(self):
+        self.assertEqual(self.res.get("detail"), "true")
 
 
 class TestRunDirectory(unittest.TestCase):

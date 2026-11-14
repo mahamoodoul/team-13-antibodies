@@ -48,22 +48,37 @@ Four rules hold the design together:
 4. **Offline by default.** `--online` is opt-in. The demo must run while the VM is dead
    and the conference wifi is gone, because tonight both will be true.
 
-## 3. Deliberately not built
+## 3. The UI, and what was cut from it
 
-Each of these was in the previous draft of this document. Each is cut, with the reason,
-because unbuilding things later costs more than not starting them.
+There **is** a dashboard — [`report.html`](fourwells/report.py), generated per run. It
+sorts, filters, opens a dossier per design, and compares designs side by side. What was
+cut is the *toolchain*, not the interactivity, and an earlier draft of this section got
+that distinction wrong by cutting both.
 
 | Cut | Why |
 | --- | --- |
-| React + TypeScript frontend | A build toolchain on a judge's laptop is a liability, not a demo. One generated HTML file opens offline with no install. |
-| FastAPI backend | Nothing needs a server. The pipeline is a batch job that writes files. |
-| SQLite / PostgreSQL | Peak scale is ~24 candidates against 768 measured designs. JSONL on disk is queryable with `grep`, diffable in git, and has no migration step. |
-| Three.js structure viewer | Zero marks. A judge asks why we picked these four, not to rotate a cartoon. |
-| Five dashboard views | One report with a ranked table and a per-design dossier answers every question the views would. |
-| Live run-status UI | The run takes minutes and prints to stdout. |
+| React + TypeScript | A build toolchain is a liability on a judge's laptop, not a demo. Vanilla JS against a JSON blob in the page gives the same interactions with no install and no `node_modules`. |
+| FastAPI backend | Nothing needs a server. The pipeline is a batch job that writes files, and the page reads data embedded in itself. |
+| SQLite / PostgreSQL | Peak scale is ~24 candidates against 768 measured designs. JSONL on disk is greppable, diffable in git, and has no migration step. |
+| Three.js structure viewer | A judge asks why we picked these four, not to rotate a cartoon. The one genuine loss on this list. |
+| Live run-status UI | The run takes seconds and prints to stdout. |
 
-The honest version of the trade: this costs us the ability to explore interactively. We
-are choosing to spend that time on the 40% instead.
+What the page does, chosen because each answers a question a judge actually asks:
+
+- **Sort by any axis** — "what if you'd ranked on stability instead?" is answered by
+  clicking the column rather than by arguing.
+- **Filter** by track, predicted tier, lab-slots-only, or free text.
+- **A dossier per design** — axes with a tick at the 0.500 baseline, rationale, kill
+  criterion, sequence, gate verdict.
+- **Side-by-side comparison** — shift-click rows, or one button for the four lab slots.
+  It bolds the per-axis winner and counts distinct clusters, which is the portfolio
+  argument made visible: *four distinct clusters, so their failure modes are
+  uncorrelated.*
+
+The constraint that survives all of it: **no network at runtime**. No CDN, no web font,
+no `fetch`, no external reference of any kind — asserted in tests, and the behaviour is
+driven in headless Chrome by `tests/test_report.py` so that a sort which silently does
+nothing cannot pass for one that works.
 
 ## 4. State on disk
 
@@ -207,8 +222,9 @@ in our own output. Rizve's files, so flagged rather than edited here.
 
 **Phase 4 — portfolio and report. ✅** [`stages/portfolio.py`](fourwells/stages/portfolio.py)
 implements the joint objective. [`report.py`](fourwells/report.py) renders `report.md` and
-a self-contained `report.html` — no CDN, no web font, no JavaScript, verified to hold zero
-external references so it opens from a `file://` URL on a dead network.
+a self-contained interactive `report.html` — sort, filter, dossiers and side-by-side
+comparison in vanilla JS, with zero external references so it opens from a `file://` URL
+on a dead network.
 [`runner.py`](fourwells/runner.py) writes the run directory and `config.json` with the git
 SHA. `make report` re-renders the newest run.
 
@@ -233,7 +249,8 @@ the ticked boxes; 70 tests, offline, under a second.
 - [x] Stub-sourced records are flagged as a warning in the run output, not hidden
 - [x] Rejections retained with their exact failure reasons, tallied by rule in the report
 - [x] Ranked ≤20 exported, with the lab slots flagged and a reason for each
-- [x] Report opens offline — zero external references, no JavaScript
+- [x] Report opens offline — zero external references, no network calls at runtime
+- [x] The dashboard's sorting, filtering and comparison verified in a real browser
 - [x] Cases the ranker gets **wrong**, named with the reason, above the reproduce section
 - [ ] `abguard` verdicts recorded — the gate calls it, needs a run on the VM to confirm
 

@@ -1,7 +1,7 @@
 """The report — OWNER: Mahamoodoul. The artefact the judges are guaranteed to see.
 
 Renders one run into Markdown and a single self-contained HTML file. No build
-step, no CDN, no JavaScript, no web font: it opens from a file:// URL on a
+step, no CDN, no framework, no web font: it opens from a file:// URL on a
 laptop with no network, because tonight the VM is gone and the conference wifi
 will be worse than it is now.
 
@@ -437,10 +437,18 @@ function visible(){
     return true;
   });
 }
+function val(r,k){
+  // Axis columns are keyed "ax.binding" and live one level down, so a plain
+  // r[k] silently resolves to undefined and the sort becomes a no-op.
+  if(k.indexOf('.')<0) return r[k];
+  var parts=k.split('.'), v=r;
+  for(var i=0;i<parts.length&&v!=null;i++) v=v[parts[i]];
+  return v;
+}
 function sorted(list){
   var s=list.slice();
   s.sort(function(a,b){
-    var x=a[sortK], y=b[sortK];
+    var x=val(a,sortK), y=val(b,sortK);
     if(x==null&&y==null) return 0;
     if(x==null) return 1; if(y==null) return -1;
     if(typeof x==='string') return sortA? x.localeCompare(y): y.localeCompare(x);
