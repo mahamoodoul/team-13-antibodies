@@ -257,9 +257,26 @@ class TestAxes(unittest.TestCase):
         self.assertLess(adj_low, 0.0)
 
     def test_calibrated_policy_lets_confidence_help(self):
-        calibrated = ConfidencePolicy(cutoff=0.82, calibrated=True, meta={"basis": "454 negatives"})
+        calibrated = ConfidencePolicy(
+            cutoff=0.82, calibrated=True, meta={}, basis="measured"
+        )
         adj, _ = calibrated.adjustment(0.95)
         self.assertGreater(adj, 0.0)
+
+    def test_a_decoy_calibration_does_not_unlock_confidence(self):
+        """A cutoff fitted against shuffled pairs is weaker evidence than one
+        fitted against molecules measured not to bind. Separating decoys is an
+        easier problem than ours, so it may still lower a score and may not
+        raise one."""
+        decoys = ConfidencePolicy(
+            cutoff=0.69, calibrated=True, meta={}, basis="computational"
+        )
+        self.assertFalse(decoys.trusted)
+        adj, note = decoys.adjustment(0.95)
+        self.assertEqual(adj, 0.0)
+        self.assertIn("computational", note)
+        # ...but a low value still counts against the design.
+        self.assertLess(decoys.adjustment(0.30)[0], 0.0)
 
     def test_confidence_is_a_feature_not_the_score(self):
         """Two designs identical but for structure confidence must not differ
@@ -377,6 +394,92 @@ class TestPortfolio(unittest.TestCase):
         portfolio.run(recs, budget=4)
         report = portfolio.audit(recs, budget=4)
         self.assertTrue(any("optimisation track" in b for b in report["blockers"]))
+
+
+class TestIngest(unittest.TestCase):
+    """The seam between generation and the ranker.
+
+    DesignRecord.from_dict filters to known fields, so loading the generation
+    export directly drops its novelty, refold and design-metrics blocks on the
+    floor. These pin down that they land where the stages look for them.
+    """
+
+    def _row(self, dist, capped=True, in_provided=False, muts=4):
+        return {
+            "design_id": "d", "vh": TRAS_VH.replace(TRAS_CDRH3, "WEGDKFYMMH"),
+            "vl": "DIQMTQSPSSLSASVGDRVTITC", "cdrh3": "WEGDKFYMMH",
+            "track": "optimisation", "format": "scfv", "parent": "trastuzumab",
+            "novelty": {
+                "mutations_from_parent": muts,
+                "min_substitutions_from_any_provided": dist,
+                "min_substitutions_is_capped_at_2": capped,
+                "in_provided_data": in_provided,
+            },
+            "refold": {"model": "boltz2", "iptm": 0.9, "binder_plddt": 80.0,
+                       "backbone_rmsd": 1.5},
+            "design_metrics": {"hotspot_obedience": 0.8},
+        }
+
+    def test_refold_and_metrics_survive_the_crossing(self):
+        from fourwells.ingest import to_record
+
+        rec = to_record(self._row(4))
+        self.assertEqual(rec.axis_evidence["confidence"]["iptm"], 0.9)
+        self.assertEqual(rec.axis_evidence["confidence"]["binder_plddt"], 80.0)
+        self.assertIn("design_metrics", rec.axis_evidence)
+        self.assertEqual(rec.axis_evidence["hotspot_obedience"], 0.8)
+
+    def test_a_clean_distance_passes(self):
+        from fourwells.ingest import novelty_verdict
+
+        passes, _ = novelty_verdict(self._row(4)["novelty"])
+        self.assertTrue(passes)
+
+    def test_a_capped_two_is_undecidable_and_fails_closed(self):
+        """The rule is MORE than 2 substitutions from any provided antibody,
+        and the export caps its distance at 2, so a reported 2 means '2 or
+        more' and cannot answer the question. Rejecting costs one slot of
+        twenty; accepting wrongly costs the submission."""
+        from fourwells.ingest import novelty_verdict, to_record
+
+        passes, reason = novelty_verdict(self._row(2, capped=True)["novelty"])
+        self.assertIsNone(passes)
+        self.assertIn("cannot be decided", reason)
+
+        rec = to_record(self._row(2, capped=True))
+        gates.check(rec, REF, provided=[], use_abguard=False)
+        self.assertFalse(rec.gates.passed)
+        self.assertTrue(any("undecidable" in f for f in rec.gates.failed_rules))
+
+    def test_a_known_binder_fails_novelty(self):
+        from fourwells.ingest import to_record
+
+        rec = to_record(self._row(0, in_provided=True))
+        gates.check(rec, REF, provided=[], use_abguard=False)
+        self.assertFalse(rec.gates.passed)
+        self.assertTrue(any("already in the provided data" in f for f in rec.gates.failed_rules))
+
+    def test_one_substitution_fails(self):
+        from fourwells.ingest import novelty_verdict
+
+        passes, reason = novelty_verdict(self._row(1)["novelty"])
+        self.assertFalse(passes)
+        self.assertIn(">= 3", reason)
+
+    def test_missing_universe_is_undecidable_not_a_pass(self):
+        from fourwells.ingest import novelty_verdict
+
+        passes, reason = novelty_verdict({"mutations_from_parent": 4})
+        self.assertIsNone(passes)
+        self.assertIn("not computed", reason)
+
+    def test_refold_divergence_becomes_a_feature(self):
+        from fourwells.ingest import refold_confidence
+
+        clean = refold_confidence({"backbone_rmsd": 1.2})
+        broken = refold_confidence({"backbone_rmsd": 9.0})
+        self.assertEqual(clean["refold_disagreement"], 0.0)
+        self.assertGreater(broken["refold_disagreement"], 0.8)
 
 
 class TestTransferGuard(unittest.TestCase):

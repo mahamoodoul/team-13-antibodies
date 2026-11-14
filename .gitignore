@@ -18,3 +18,9 @@ team-13
 TEAM-13-SETUP.md
 team-13*
 proof/tidy/facs_*.csv
+
+# Organisers'/Zenodo source datasets, pulled off the VM before it was wiped so the
+# proof lane still rebuilds (proof/prepare_datasets.py --data data/source).
+# Deliberately NOT committed: this repo is public and redistributing their data
+# is the organisers' call, not ours.
+data/source/

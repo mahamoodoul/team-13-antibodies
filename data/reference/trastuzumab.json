@@ -43,16 +43,23 @@
     "worst_kd_nM": 0.178,
     "binding_result": "quantified_binding",
     "source": "the 8 rows of trastuzumab_her2_spr_all_768.csv whose cdrh3 == WGGDGFYAMD",
-    "_use": "This is the number a design must beat on the binding axis. Quote the median, 0.13 nM, and say it is a median of 8 measurements — the spread is 6x, so a design at 0.15 nM has not clearly beaten anything.",
+    "geometric_mean_nM": 0.0954,
+    "fold_spread": 6.24,
+    "_use": "Quote the geometric mean, 0.095 nM, as the bar: KD is log-distributed, trastuzumab is measured EIGHT times here, and the eight values span 6.2x. The median (0.1345) and the single row people tend to cite (0.152) are both inside that spread, and five of trastuzumab's own replicates 'beat' 0.152. A design predicted to beat the parent by less than ~6x has not beaten anything, and the order sheet must say so.",
     "_base_rate": {
-      "designs_beating_median": 6,
-      "designs_total": 182,
-      "rate": 0.033,
-      "_derivation": "Of the 190 quantified_binding rows, 8 ARE trastuzumab's own reference rows, leaving 182 genuine variant designs. 6 of those 182 beat the 0.1345 nM median, so the base rate is 3.3%. Against a single reference row (0.152 nM) it is 7/182 = 3.8%.",
-      "_correction": "An earlier version of this file said 12 of 190 = 6.3%. That counted trastuzumab's own 8 reference rows as designs: 7 real designs beat 0.152, plus 5 trastuzumab rows that beat another trastuzumab row, equals 12. Do not put 6.3% on the enrichment slide — the pool base rate is 3.3%, and a judge who recomputes it will find 182, not 190.",
-      "_use": "This is the denominator of the enrichment claim. Our ranker's top-4 hit rate is measured against 3.3%."
+      "submittable_designs": 131,
+      "submittable_beating_bar": 1,
+      "submittable_rate": 0.0076,
+      "all_designs": 182,
+      "all_beating_geometric_mean": 4,
+      "all_beating_median": 6,
+      "all_beating_0152": 7,
+      "_derivation": "Of the 190 quantified_binding rows, 8 ARE trastuzumab's own replicates, leaving 182 genuine designs. Against the 0.0954 geometric mean, 4 of 182 win (2.2%); against the 0.1345 median, 6 (3.3%); against 0.152, 7 (3.8%). But only 131 of the 182 are SUBMITTABLE (10-mer at <70% CDRH3 identity; 48 sit at >=70% identity and 3 are not 10-mers), and exactly 1 of those 131 reaches any of the three bars. The submittable base rate is 0.76% and does not move with the choice of bar, which is why it is the number to use.",
+      "_the_honest_version": "That single winner is WGGSGPYLFD at 0.095 nM, 60% identity - level with the 0.0954 geometric mean, inside assay noise. So strictly, ZERO submittable designs in the provided data clearly beat trastuzumab on affinity. State it that way; it is both true and a stronger argument for spreading our four bets across axes.",
+      "_correction": "An earlier version of this file claimed 12 of 190 designs beat the parent, a 6.3% base rate. That counted trastuzumab's own replicates as designs (5 of the 12) and ignored the novelty gate. Do not put 6.3% on a slide: a judge who recomputes it finds 182 genuine designs, 131 submittable, and a 0.76% base rate.",
+      "_use": "This 0.76% is the denominator of the enrichment claim. Our ranker's top-4 hit rate is measured against it, not against 3.3% or 6.3%. Matches docs/binding-axis-validation.md."
     },
-    "_how_hard_binding_is": "Median KD across the 182 designs is 79.5 nM against trastuzumab's 0.13 nM, a ~590x gap, and exactly 1 of 182 beats trastuzumab's best single measurement. This is the evidence for the plan's call that affinity is the hard axis and thermostability the beatable one."
+    "_how_hard_binding_is": "Median KD across the 182 designs is 79.5 nM against the parent's 0.095 nM, roughly a 800x gap, and not one submittable design clearly beats the parent. This is the evidence for the plan's call that affinity is the hard axis and thermostability the beatable one. See proof/enrichment.py and proof/tidy/enrichment.md."
   },
 
   "cdrs_kabat": {
