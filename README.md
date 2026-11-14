@@ -1,4 +1,4 @@
-# Team-13 — AI × Antibodies Hackathon, Oslo
+# team-13 — AI × Antibodies Hackathon, Oslo
 
 Improving **trastuzumab** (anti-HER2). Designs are measured by Adaptyv on three axes:
 binding (SPR), epitope preservation, thermostability. Beat all three = S-tier.
