@@ -232,6 +232,11 @@ def manifest(out, log, data, split_at):
     A("   That is the baseline to beat, not 33%.")
     A("\nEdit-distance distribution: " + ", ".join(f"{k}:{v:,}" for k, v in sorted(f["ed"].items())))
 
+    A("")
+    A("**The organisers also ship ready-made splits** in `zenodo-10831512`, clustered by")
+    A("clonotype, with a binary `label` equal to the \"high\" FACS class. Those are the")
+    A("comparable numbers and the convention to adopt; this split is the harder")
+    A("extrapolation test alongside them. See `split_reconciliation.md`.")
     A("\n## SPR validation set\n")
     A(f"{s['measured']} of {s['total']} designs carry a fitted KD. "
       f"Range {s['kd_min']:g}–{s['kd_max']:g} nM, median {s['kd_med']:g} nM.")

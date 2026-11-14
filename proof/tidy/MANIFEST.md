@@ -47,6 +47,11 @@ respected or the headline number is meaningless:
 
 Edit-distance distribution: 1:50, 2:600, 3:1,490, 4:6,392, 5:28,510, 6:86,438, 7:160,128, 8:150,838, 9:70,161, 10:19,739
 
+**The organisers also ship ready-made splits** in `zenodo-10831512`, clustered by
+clonotype, with a binary `label` equal to the "high" FACS class. Those are the
+comparable numbers and the convention to adopt; this split is the harder
+extrapolation test alongside them. See `split_reconciliation.md`.
+
 ## SPR validation set
 
 190 of 768 designs carry a fitted KD. Range 0.0234389–13863.2 nM, median 66.0271 nM.
